@@ -3,12 +3,28 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 14 / 26
-**Current Task:** TASK-14 Complete
+**Tasks Completed:** 15 / 26
+**Current Task:** TASK-15 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-15: Implement histogram CSV writer
+
+Added `src/lumamatch/csv_writer.py` with `write_histogram_csv(path, result: MatchResult) -> None`
+and `read_histogram_csv(path) -> tuple[dict[str, str], list[list[str]]]`. The writer opens with
+`newline=''` and writes eight `# key=value` metadata lines (image1, image2, image1_pixels,
+image2_pixels, bins, emd_before, emd_after, clipped_fraction) via plain `fh.write` to avoid
+`csv.writer` quoting the comment lines, then hands off to `csv.writer` for the
+`CSV_HEADER`-named header row and one data row per bin (bin_index, l_star bounds/center at 6
+decimal places, and the three raw pixel counts coerced with `int()` to avoid numpy repr leaking
+into the file). `read_histogram_csv` filters `#`-prefixed lines into a metadata dict and feeds the
+rest through `csv.reader`, giving tests and future users a supported round-trip without
+reimplementing comment filtering. `tests/test_csv_writer.py` covers comment-block/header
+structure, no-blank-lines, column sums against `MatchResult.reference_pixels`/`target_pixels`,
+metadata parsing, and numeric formatting (no `.`/`e` in count fields, full `[0, 100]` L* domain
+span). `pytest` (201 passed) and `ruff check`/`format` clean.
 
 ## 2026-10-08 — TASK-14: Implement output path resolution and overwrite guard
 

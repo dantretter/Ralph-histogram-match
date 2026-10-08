@@ -102,7 +102,7 @@
     "title": "Implement histogram CSV writer",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-15.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-16",

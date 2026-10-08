@@ -13,7 +13,7 @@
 | `result.py` | created | `MatchResult` frozen dataclass: hand-off object between pipeline, CSV writer, and CLI reporter; validates shapes/sums and freezes arrays read-only. |
 | `paths.py` | created | `resolve_outputs`: derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` beside the target image; all-or-nothing overwrite guard. |
 | `pipeline.py` | planned | `match_luminance` end-to-end orchestration. |
-| `csv_writer.py` | planned | Histogram CSV writer. |
+| `csv_writer.py` | created | `write_histogram_csv`/`read_histogram_csv`: commented 3-histogram CSV artifact. |
 | `cli.py` | planned | Argument parsing, entry point, reporting/error handling. |
 | `__main__.py` | planned | `python -m lumamatch` entry point. |
 
@@ -38,6 +38,7 @@ must not be modified.
 | `test_tonemap_apply.py` | created | `apply_lut` shape/dtype, range, monotonicity, equal-input equality, end clamping, anti-banding gradient check, identity-LUT tolerance, `ValueError` on mismatched lengths. |
 | `test_result.py` | created | `MatchResult` valid construction, `emd_reduction` property, length/range/sum validation errors, read-only array enforcement. |
 | `test_paths.py` | created | `resolve_outputs` naming, suffix-case preservation, all-or-nothing overwrite guard (image/csv/both), force bypass, missing-parent and read-only-parent errors. |
+| `test_csv_writer.py` | created | `write_histogram_csv` comment-block/header structure, column sums against `MatchResult` totals, metadata round-trip, numeric formatting (no decimals/scientific notation in counts, full L* domain span). |
 
 Further test modules (tone mapping round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.
