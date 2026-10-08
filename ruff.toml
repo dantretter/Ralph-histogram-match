@@ -1,0 +1,5 @@
+line-length = 100
+exclude = [".venv", "src/node_modules"]
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]

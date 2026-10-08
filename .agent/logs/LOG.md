@@ -3,12 +3,25 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 2 / 26
-**Current Task:** TASK-1 Complete
+**Tasks Completed:** 3 / 26
+**Current Task:** TASK-3 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-3: Scaffold lumamatch Python package, requirements, and ruff config
+
+Scaffolded the `lumamatch` package and toolchain:
+- `src/lumamatch/__init__.py` with `__version__ = "0.1.0"`.
+- `requirements.txt` pinning `numpy>=2.0`, `pillow>=11.0`, `pillow-heif>=1.0`, `pytest>=8.0`, `ruff>=0.6`.
+- `ruff.toml` (line-length 100, select E/F/I/UP/B, excludes `.venv` and `src/node_modules`).
+- `pytest.ini` (`testpaths = tests`, `pythonpath = src`).
+- `tests/__init__.py` and `tests/test_import.py` smoke test.
+- `.agent/STRUCTURE.md` documenting the planned `src/lumamatch/` module layout and `tests/`.
+- **Environment note:** `.venv/` from TASK-1 was gone in this sandbox invocation (fresh container). Recreated it: `python3 -m venv .venv` failed on missing `ensurepip`, same as TASK-1's finding, so reinstalled `python3.14-venv` via apt, then recreated the venv and reinstalled all requirements successfully.
+- Verified: `.venv/bin/pytest` → 1 passed; `.venv/bin/ruff check src tests` → all checks passed; `.venv/bin/ruff format --check src tests` → already formatted.
+- Did not touch `src/package.json`, `src/node_modules`, `src/playwright.config.ts`, or `src/vitest.config.ts`. `.gitignore` already had `.venv/` and `__pycache__/` from TASK-1, no change needed.
 
 ## 2026-10-08 — TASK-1: Verify project prerequisites and access
 
