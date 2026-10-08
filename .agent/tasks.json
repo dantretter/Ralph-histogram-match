@@ -60,7 +60,7 @@
     "title": "Implement fixed-domain L* histogram",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-9.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-10",

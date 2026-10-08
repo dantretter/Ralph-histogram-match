@@ -3,12 +3,22 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 8 / 26
-**Current Task:** TASK-8 Complete
+**Tasks Completed:** 9 / 26
+**Current Task:** TASK-9 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-9: Implement fixed-domain L* histogram
+
+Added `src/lumamatch/histogram.py`: `l_histogram(l_star, bins=256)` bins L*
+values over a fixed `[0, 100]` domain (`np.clip` then `np.histogram`), always
+returning edges from `bin_edges` so every histogram in the pipeline shares
+identical bin boundaries. Also added `bin_centers`, `bin_width`, and a
+`to_pmf` normalization helper shared by the upcoming EMD and LUT modules.
+Covered with `tests/test_histogram.py` (clipping, exact-boundary values,
+dtype, `ValueError` cases, helpers).
 
 ## 2026-10-08 — TASK-8: Implement save_rgb preserving source format
 
