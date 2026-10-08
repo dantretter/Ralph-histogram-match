@@ -6,6 +6,7 @@ Saving writes back to the format implied by the output extension, without
 carrying over any source EXIF/ICC metadata.
 """
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,11 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 # Must be called before any .heic/.heif file is opened via Image.open.
 pillow_heif.register_heif_opener()
+
+# Pillow's Image.MAX_IMAGE_PIXELS decompression-bomb guard is intentionally
+# left at its default (~89 million pixels) and must never be raised or set to
+# None here: untrusted images are this tool's only real attack surface, and
+# disabling the guard to silence a warning would reopen a DoS vector.
 
 SUPPORTED_EXTENSIONS = frozenset({".heic", ".heif", ".jpg", ".jpeg", ".png"})
 
@@ -35,11 +41,15 @@ def load_rgb(path: Path | str) -> np.ndarray:
     resolved = _validate_source(path)
 
     try:
-        with Image.open(resolved) as img:
-            img = ImageOps.exif_transpose(img) or img
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            array = np.asarray(img, dtype=np.uint8)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(resolved) as img:
+                img = ImageOps.exif_transpose(img) or img
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                array = np.asarray(img, dtype=np.uint8)
+    except (Image.DecompressionBombWarning, Image.DecompressionBombError) as exc:
+        raise ValueError(f"refusing to decode {resolved}: image too large") from exc
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError(f"could not decode {resolved}: {exc}") from exc
 

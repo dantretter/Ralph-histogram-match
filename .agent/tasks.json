@@ -172,7 +172,7 @@
     "title": "Harden untrusted image input handling",
     "category": "security",
     "specFilePath": ".agent/tasks/TASK-25.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-26",

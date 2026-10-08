@@ -3,12 +3,31 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 24 / 26
-**Current Task:** TASK-24 Complete
+**Tasks Completed:** 25 / 26
+**Current Task:** TASK-25 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-25: Harden untrusted image input handling
+
+Audited for bomb-guard tampering (`grep MAX_IMAGE_PIXELS LOAD_TRUNCATED_IMAGES` across
+`src`/`tests` — clean) and added a comment in `io_image.py` documenting that the default is
+load-bearing and must not be raised. In `load_rgb`, wrapped the decode in
+`warnings.catch_warnings()` with `simplefilter("error", Image.DecompressionBombWarning)` and added
+`Image.DecompressionBombWarning`/`DecompressionBombError` to the except clause (checked ahead of
+the existing `OSError` catch, since `DecompressionBombError` is a plain `Exception`, not an
+`OSError`), re-raising both as `ValueError(f"refusing to decode {path}: image too large")`. Added
+`tests/test_security.py` (10 tests): the bomb path via a monkeypatched `Image.MAX_IMAGE_PIXELS =
+100` against a normal 128x192 PNG; garbage-bytes-after-magic and truncated-to-40-bytes malformed
+files for each of PNG/JPG/HEIC, asserting `ValueError` naming the path; `resolve_outputs`
+path-traversal containment (`tmp_path/sub/../sub/photo.png` resolves inside `tmp_path/sub` —
+already correct, since `Path.is_dir()`/filesystem calls normalize `..` even though
+`resolve_outputs` itself doesn't call `.resolve()`); EXIF GPS-tag and fabricated ICC-profile
+stripping from the final `match_luminance` output (regression on top of TASK-8); and a full
+pipeline run with `socket.socket` monkeypatched to raise, proving zero network I/O. Added a
+`Security` section to `README.md`. Full suite: 271 passed (up from 261); `ruff check` clean.
 
 ## 2026-10-08 — TASK-24: Edge case handling and tests
 
