@@ -53,7 +53,7 @@
     "title": "Implement save_rgb preserving source format",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-8.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-9",

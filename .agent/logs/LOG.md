@@ -3,12 +3,33 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 7 / 26
-**Current Task:** TASK-7 Complete
+**Tasks Completed:** 8 / 26
+**Current Task:** TASK-8 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-8: Implement save_rgb preserving source format
+
+Added `save_rgb(path, rgb, quality=95) -> None` to `src/lumamatch/io_image.py`, writing the
+format implied by the output extension.
+- `_validate_output` reuses `SUPPORTED_EXTENSIONS` for the ValueError path and checks
+  `path.parent.is_dir()`, raising `FileNotFoundError` for a missing output directory.
+- `_save_kwargs(suffix, quality)` is a small pure function: JPEG gets
+  `{'quality', 'subsampling': 0, 'optimize': True}` (4:4:4 to avoid chroma-driven L* drift),
+  HEIC gets `{'quality'}`, PNG gets `{'optimize': True}` only (lossless, no quality knob).
+- `Image.fromarray(rgb, mode='RGB').save(path, **kwargs)` deliberately omits `exif=`/
+  `icc_profile=` so no source metadata survives — this is a documented privacy default, not an
+  oversight (to be called out in the TASK-26 README).
+- Input validation rejects non-uint8 dtype and non-(H, W, 3) shape with `ValueError` before any
+  write is attempted; `OSError` from the Pillow save itself is wrapped as `ValueError`.
+- `tests/test_io_save.py`: PNG round-trip is byte-exact via `load_rgb`; JPEG/HEIC are checked
+  for readability, correct shape/dtype, and (JPEG) mean abs diff < 8 at quality 95; EXIF
+  stripping is verified by writing an Orientation tag into a source JPEG and asserting the
+  saved output's `getexif()` is empty; error paths cover unsupported extension, missing parent
+  directory, wrong dtype, and wrong shape.
+- `ruff check`/`format` clean; full suite (43 tests) green.
 
 ## 2026-10-08 — TASK-7: Implement load_rgb for HEIC, JPG, and PNG
 

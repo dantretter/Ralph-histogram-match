@@ -1,7 +1,9 @@
-"""Image loading for HEIC/HEIF, JPG, and PNG.
+"""Image loading and saving for HEIC/HEIF, JPG, and PNG.
 
 Normalizes format differences (palette, grayscale, alpha, EXIF orientation)
 so the rest of the pipeline only ever sees a uint8 (H, W, 3) RGB array.
+Saving writes back to the format implied by the output extension, without
+carrying over any source EXIF/ICC metadata.
 """
 
 from pathlib import Path
@@ -45,3 +47,46 @@ def load_rgb(path: Path | str) -> np.ndarray:
         raise ValueError(f"unexpected array shape {array.shape} decoding {resolved}")
 
     return array
+
+
+def _validate_output(path: Path | str) -> Path:
+    """Resolve an output path, checking extension support and parent dir."""
+    resolved = Path(path).expanduser().resolve()
+    suffix = resolved.suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
+        raise ValueError(f"unsupported image format '{suffix}'; supported: {supported}")
+    if not resolved.parent.is_dir():
+        raise FileNotFoundError(str(resolved.parent))
+    return resolved
+
+
+def _save_kwargs(suffix: str, quality: int) -> dict:
+    """Build format-specific Pillow save kwargs for a given extension."""
+    if suffix in (".jpg", ".jpeg"):
+        return {"quality": quality, "subsampling": 0, "optimize": True}
+    if suffix in (".heic", ".heif"):
+        return {"quality": quality}
+    return {"optimize": True}
+
+
+def save_rgb(path: Path | str, rgb: np.ndarray, quality: int = 95) -> None:
+    """Save a uint8 (H, W, 3) RGB array to the format implied by path's extension.
+
+    No EXIF or ICC metadata is written, regardless of source. JPEG is saved
+    with subsampling=0 (4:4:4) to minimize chroma damage; PNG is lossless.
+    """
+    resolved = _validate_output(path)
+
+    if rgb.dtype != np.uint8:
+        raise ValueError(f"expected uint8 array, got dtype {rgb.dtype}")
+    if rgb.ndim != 3 or rgb.shape[2] != 3:
+        raise ValueError(f"expected (H, W, 3) array, got shape {rgb.shape}")
+
+    kwargs = _save_kwargs(resolved.suffix.lower(), quality)
+
+    try:
+        img = Image.fromarray(rgb, mode="RGB")
+        img.save(resolved, **kwargs)
+    except OSError as exc:
+        raise ValueError(f"could not write {resolved}: {exc}") from exc
