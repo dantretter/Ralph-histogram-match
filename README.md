@@ -40,3 +40,6 @@ application code can mitigate — keep Pillow and `pillow-heif` updated.
 
 See [`src/lumamatch/README.md`](src/lumamatch/README.md) for install/usage, the CSV
 reference, the algorithm rationale, and known limitations.
+
+**Quick start** (after the one-time setup in that README):
+`~/Code/ralph-histogram-match/lumamatch reference.jpg photo.jpg`

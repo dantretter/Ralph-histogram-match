@@ -5,30 +5,52 @@ image, `lumamatch` computes the monotonic tone curve that makes the target's L*
 (lightness) histogram match the reference's as closely as possible, and writes the
 result beside the target.
 
-## Install
+## One-time setup (Mac)
 
-From the repo root:
+1. Install Python 3.14 with Homebrew (skip if `python3.14 --version` already works):
+
+   ```bash
+   brew install python@3.14
+   ```
+
+2. Create the project's Python environment and install its libraries:
+
+   ```bash
+   cd ~/Code/ralph-histogram-match
+   python3.14 -m venv .venv-mac
+   .venv-mac/bin/pip install -r requirements.txt
+   ```
+
+## Running it
+
+Use the `lumamatch` launcher in the repo's top folder. It works from any folder:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+~/Code/ralph-histogram-match/lumamatch reference.jpg photo.jpg
 ```
 
-## Usage
+- **First image (reference):** the look you want to copy. It is never changed.
+- **Second image (target):** the image to adjust. It is never overwritten. Two new files
+  appear next to it:
+  - `photo_matched.jpg`: the adjusted image (same format as the target)
+  - `photo_histograms.csv`: the three L* histograms
+- JPG, PNG and HEIC all work.
+- **Tip:** type the command up to where an image path goes, then drag the image from
+  Finder into the Terminal window to paste its full path.
+- Running the same command again stops with "already exists" so earlier results aren't
+  overwritten. Add `--force` to overwrite them.
+
+**Shorter command (optional):** add an alias so you can type just `lumamatch`:
 
 ```bash
-PYTHONPATH=src python -m lumamatch REFERENCE TARGET
+echo 'alias lumamatch=~/Code/ralph-histogram-match/lumamatch' >> ~/.zshrc
 ```
 
-(If you installed into an active venv as above and run from the repo root without
-activating a packaging step, `PYTHONPATH=src` is required because the package lives
-under `src/` and is not pip-installed in editable mode. If you activated the venv with
-`source .venv/bin/activate`, prefix with `python` instead of `.venv/bin/python`.)
+Open a new Terminal window, then run `lumamatch reference.jpg photo.jpg`.
 
-**REFERENCE** is the image whose tonality you want to copy — it is never modified.
-**TARGET** is the image that gets modified — it is also never modified *in place*; a new
-`<stem>_matched<ext>` file is written beside it instead.
+### Options
+
+Add these after the two image paths:
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
@@ -44,7 +66,7 @@ Real output from an actual run (synthetic reference image + a seeded random mono
 distortion used as the subject — see `tests/images.py` and `tests/curves.py`):
 
 ```
-$ python -m lumamatch reference.png subject.png
+$ lumamatch reference.png subject.png
 reference: reference.png (192x128, 24576 px)
 target:    subject.png (192x128, 24576 px)
 bins:      256
@@ -67,7 +89,7 @@ subject_matched.png
 Re-running the identical command without `--force` writes nothing and exits 2:
 
 ```
-$ python -m lumamatch reference.png subject.png
+$ lumamatch reference.png subject.png
 error: subject_matched.png already exists (use --force to overwrite)
 ```
 
@@ -204,10 +226,10 @@ application code can mitigate — keep Pillow and `pillow-heif` updated.
 
 ## Testing
 
-From the repo root:
+From the repo root (use `.venv/bin/pytest` inside the Ralph sandbox):
 
 ```bash
-.venv/bin/pytest
+.venv-mac/bin/pytest
 ```
 
 The primary correctness gate is `tests/test_roundtrip.py`: it builds a synthetic
