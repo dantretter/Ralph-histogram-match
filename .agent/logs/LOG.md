@@ -3,12 +3,36 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 25 / 26
-**Current Task:** TASK-25 Complete
+**Tasks Completed:** 26 / 26
+**Current Task:** TASK-26 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-26: Write README with usage, CSV reference, and algorithm rationale
+
+Wrote `src/lumamatch/README.md`. Generated a real worked example (not invented numbers)
+by building a synthetic reference image and a seeded random monotonic distortion via the
+`tests/images.py`/`tests/curves.py` helpers, running the actual `python -m lumamatch`
+subprocess on the two PNGs, and pasting the genuine stdout report, file listing, and CSV
+header into the doc; also ran the `--version`, `--help`, and repeat-without-`--force`
+(exit 2) invocations for real rather than describing them. The Algorithm section states
+explicitly that `T = F_ref^-1 . F_src` is the proven EMD/Wasserstein-1 optimal transport
+map over monotonic functions in 1-D, so CDF histogram specification is exact, not a
+heuristic — the point being to stop a future contributor from "optimizing" it into a
+search-based approximation. Limitations section covers gamut clipping, irreversible
+information loss under compressive curves, monotonicity precluding an exact match,
+untouched a*/b* (color casts persist), the sRGB/D65/no-ICC assumption, stripped output
+metadata, dropped (non-composited) alpha, and 8-bit-only I/O. Folded in the Security
+section from TASK-25. Verified the two-line pandas CSV-loading snippet by installing
+pandas ad hoc into `.venv` and then uninstalling it (not added to `requirements.txt`,
+per the task's explicit instruction). Appended a single "Tool documentation" link to the
+end of the repo-root `README.md`; its existing Ralph-loop/Security text is unchanged.
+Updated `.agent/STRUCTURE.md` with the new file. Full suite: 271 passed (unchanged, no
+code touched); `ruff check` and `ruff format --check` both clean (one markdown-embedded
+code-fence formatting fix needed — `ruff format` reformats Python inside README fences
+too). All 26 tasks in `tasks.json` now pass.
 
 ## 2026-10-08 — TASK-25: Harden untrusted image input handling
 

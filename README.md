@@ -35,3 +35,8 @@ decoding untrusted image files. The following properties are enforced and covere
 
 The real residual risk is a decoder CVE (libheif/libjpeg/libpng), which no amount of
 application code can mitigate — keep Pillow and `pillow-heif` updated.
+
+## Tool documentation
+
+See [`src/lumamatch/README.md`](src/lumamatch/README.md) for install/usage, the CSV
+reference, the algorithm rationale, and known limitations.

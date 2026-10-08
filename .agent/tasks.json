@@ -179,6 +179,6 @@
     "title": "Write README with usage, CSV reference, and algorithm rationale",
     "category": "documentation",
     "specFilePath": ".agent/tasks/TASK-26.json",
-    "passes": false
+    "passes": true
   }
 ]

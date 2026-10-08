@@ -16,6 +16,7 @@
 | `csv_writer.py` | created | `write_histogram_csv`/`read_histogram_csv`: commented 3-histogram CSV artifact. |
 | `cli.py` | created | `build_parser`, `format_report`, `main(argv) -> int`: argument parsing, the stdout success report, and single-line stderr error handling with a 2/1 exit-code contract. |
 | `__main__.py` | created | `python -m lumamatch` entry point; three-line `sys.exit(main())` shim. |
+| `README.md` | created | Tool documentation: install/usage, flag reference, worked example, outputs, CSV reference, algorithm rationale (why CDF matching is the EMD optimum), limitations, security, testing. Linked from the repo-root `README.md`. |
 
 Note: `src/` also contains an unrelated Node/Playwright scaffold (`package.json`,
 `package-lock.json`, `playwright.config.ts`, `vitest.config.ts`) that predates this project and
