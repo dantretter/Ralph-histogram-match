@@ -3,12 +3,26 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 18 / 26
-**Current Task:** TASK-18 Complete
+**Tasks Completed:** 19 / 26
+**Current Task:** TASK-19 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-19: Build random monotonic tone curve test fixture
+
+Added `tests/curves.py`: `random_monotonic_curve(rng, bins)` builds a strictly-increasing
+L* curve as a cumulative sum of `rng.uniform(0.05, 1.0)` increments, then affine-rescales it
+onto a random sub-range of `[0, 100]` (`low` in `[0, 25)`, `high` in `(75, 100]`) so seeds
+produce everything from near-full-range to heavily range-compressing curves; raises
+`ValueError` if the result isn't strictly increasing or finite. `apply_curve_to_image(rgb,
+curve, edges)` converts to Lab, interpolates L* through the curve against `bin_centers(edges)`
+(the same convention as `tonemap.apply_lut`), and converts back with `lab_to_srgb`, returning
+only the uint8 image. Added `tests/test_curves.py`: monotonicity/range over 20 seeds,
+same-seed determinism, seed 0 vs 1 mean-abs-difference > 1.0, `apply_curve_to_image`
+shape/dtype, and a*/b* preservation (using mid-range RGB values so the assertion isolates
+the a*/b* guarantee from legitimate gamut-clipping behavior at the sRGB boundary).
 
 ## 2026-10-08 — TASK-18: Implement CLI reporting output and error handling
 

@@ -130,7 +130,7 @@
     "title": "Build random monotonic tone curve test fixture",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-19.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-20",
