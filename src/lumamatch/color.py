@@ -26,6 +26,10 @@ D65_WHITE = SRGB_TO_XYZ @ np.array([1.0, 1.0, 1.0])
 DELTA = 6 / 29
 DELTA_CUBED = DELTA**3
 
+# CIE XYZ to linear sRGB, D65 white point: the exact inverse of SRGB_TO_XYZ,
+# derived rather than hardcoded so the two matrices can never drift apart.
+XYZ_TO_SRGB = np.linalg.inv(SRGB_TO_XYZ)
+
 
 def _srgb_to_linear(c: np.ndarray) -> np.ndarray:
     """Invert the sRGB transfer function. `c` is float64 in [0, 1]."""
@@ -78,3 +82,57 @@ def srgb_to_lab(rgb: np.ndarray) -> np.ndarray:
 def lab_l_channel(lab: np.ndarray) -> np.ndarray:
     """Return a contiguous float64 copy of the L* channel."""
     return np.ascontiguousarray(lab[..., 0])
+
+
+def _lab_f_inv(t: np.ndarray) -> np.ndarray:
+    """Inverse of the CIE Lab nonlinearity. `t` is in f-space."""
+    return np.where(t > DELTA, t**3, 3 * DELTA**2 * (t - 4 / 29))
+
+
+def _xyz_to_linear_rgb(xyz: np.ndarray) -> np.ndarray:
+    """Convert CIE XYZ (H, W, 3) to linear sRGB (H, W, 3)."""
+    return xyz @ XYZ_TO_SRGB.T
+
+
+def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
+    """Apply the forward sRGB transfer function. `c` is linear-light, may be out of [0, 1]."""
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * np.abs(c) ** (1 / 2.4) - 0.055)
+
+
+def lab_to_srgb(lab: np.ndarray) -> tuple[np.ndarray, float]:
+    """Convert CIELab back to 8-bit sRGB, the exact inverse of `srgb_to_lab`.
+
+    Args:
+        lab: float64 array of shape (H, W, 3) with channels L*, a*, b*.
+
+    Returns:
+        A tuple of (uint8 array of shape (H, W, 3), clipped_fraction), where
+        clipped_fraction is the fraction of pixels where any channel fell
+        outside [0, 1] before clipping, in [0.0, 1.0].
+    """
+    if lab.dtype != np.float64:
+        raise ValueError(f"lab must be float64, got dtype {lab.dtype}")
+    if lab.ndim != 3 or lab.shape[2] != 3:
+        raise ValueError(f"lab must have shape (H, W, 3), got shape {lab.shape}")
+
+    lum = lab[..., 0]
+    a = lab[..., 1]
+    b = lab[..., 2]
+
+    fy = (lum + 16) / 116
+    fx = fy + a / 500
+    fz = fy - b / 200
+
+    xyz_r = np.stack([_lab_f_inv(fx), _lab_f_inv(fy), _lab_f_inv(fz)], axis=-1)
+    xyz = xyz_r * D65_WHITE
+
+    rgb_lin = _xyz_to_linear_rgb(xyz)
+    srgb = _linear_to_srgb(rgb_lin)
+
+    out_of_range = (srgb < 0.0) | (srgb > 1.0)
+    clipped_pixels = np.any(out_of_range, axis=-1)
+    clipped_fraction = float(clipped_pixels.mean()) if clipped_pixels.size else 0.0
+
+    srgb = np.clip(srgb, 0.0, 1.0)
+    rgb = np.floor(srgb * 255.0 + 0.5).astype(np.uint8)
+    return rgb, clipped_fraction

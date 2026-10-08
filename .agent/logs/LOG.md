@@ -3,12 +3,22 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 4 / 26
-**Current Task:** TASK-4 Complete
+**Tasks Completed:** 5 / 26
+**Current Task:** TASK-5 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-5: Implement lab_to_srgb conversion with gamut clipping report
+
+Added `lab_to_srgb` to `src/lumamatch/color.py`, the exact inverse of TASK-4's `srgb_to_lab`.
+- `XYZ_TO_SRGB = np.linalg.inv(SRGB_TO_XYZ)` derived once at module level, so the two matrices can't drift apart.
+- `_lab_f_inv`, `_xyz_to_linear_rgb`, `_linear_to_srgb` (forward transfer function, `np.abs` under the power to avoid NaN on negative out-of-gamut values) compose in `lab_to_srgb`.
+- Gamut clipping is detected *before* clipping: `out_of_range` per channel, `np.any(..., axis=-1)` per pixel, `clipped_fraction` is that boolean mask's mean (0.0 for a zero-size array). Quantization uses `np.floor(srgb * 255.0 + 0.5)` (round-half-away-from-zero), not `np.round` (banker's rounding), per the spec note that banker's rounding breaks the byte-exact round-trip.
+- `tests/test_color_inverse.py`: 256 greys and 4096 (64x64) seeded random colors round-trip byte-exact; a uniform in-gamut image reports `clipped_fraction == 0.0`; a deliberately out-of-gamut Lab value (`L*=95, a*=80, b*=-80`) reports `clipped_fraction == 1.0`; both `ValueError` cases (non-float64 dtype, wrong shape).
+- **Finding:** the round-trip tests do *not* assert `clipped_fraction == 0.0` — float noise at the 0/255 sRGB boundary can push a handful of pixels a hair outside `[0, 1]` even though they are genuinely in-gamut and still round-trip byte-exact after clipping. The spec's "in-gamut image returns 0.0" criterion is tested separately with a safely mid-range uniform image, matching the task spec's own test breakdown (steps 7a–7e).
+- Verified: `.venv/bin/pytest -q` → 15 passed; `.venv/bin/ruff check src tests` → clean; `ruff format` → no changes needed.
 
 ## 2026-10-08 — TASK-4: Implement srgb_to_lab conversion
 

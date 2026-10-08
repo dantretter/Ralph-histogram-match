@@ -5,7 +5,7 @@
 | File | Status | Purpose |
 | --- | --- | --- |
 | `__init__.py` | created | Package version (`__version__`). |
-| `color.py` | partial | sRGB → CIELab conversion (`srgb_to_lab`, `lab_l_channel`); `lab_to_srgb` still planned. |
+| `color.py` | created | sRGB ↔ CIELab conversion: `srgb_to_lab`, `lab_l_channel`, `lab_to_srgb` (with gamut clip reporting). |
 | `io_image.py` | planned | `load_rgb` / `save_rgb` for HEIC, JPG, PNG. |
 | `histogram.py` | planned | Fixed-domain 256-bin L* histogram. |
 | `emd.py` | planned | 1-D Earth Mover's Distance between histograms. |
@@ -27,7 +27,7 @@ must not be modified.
 | `__init__.py` | created | Makes `tests` a package. |
 | `test_import.py` | created | Smoke test: `lumamatch` imports and exposes `__version__`. |
 | `test_color_forward.py` | created | `srgb_to_lab`/`lab_l_channel` anchors, range, dtype/shape, and `ValueError` cases. |
+| `test_color_inverse.py` | created | `lab_to_srgb` byte-exact round-trip (greys + random), gamut clipping report, `ValueError` cases. |
 
-Further test modules (color conversion anchors, histogram/EMD, tone mapping round-trip, I/O
-format coverage, CLI end-to-end) will be added alongside their corresponding implementation
-tasks.
+Further test modules (histogram/EMD, tone mapping round-trip, I/O format coverage, CLI
+end-to-end) will be added alongside their corresponding implementation tasks.

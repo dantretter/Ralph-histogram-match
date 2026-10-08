@@ -32,7 +32,7 @@
     "title": "Implement lab_to_srgb conversion with gamut clipping report",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-5.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-6",
