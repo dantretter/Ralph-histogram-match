@@ -123,7 +123,7 @@
     "title": "Implement CLI reporting output and error handling",
     "category": "ui-ux",
     "specFilePath": ".agent/tasks/TASK-18.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-19",

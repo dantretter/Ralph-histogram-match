@@ -22,6 +22,8 @@ def _make_valid(bins: int = 4, **overrides) -> MatchResult:
         "clipped_fraction": 0.0,
         "reference_pixels": 10,
         "target_pixels": 10,
+        "reference_shape": (2, 5),
+        "target_shape": (2, 5),
         "image_out": Path("target_matched.png"),
         "csv_out": Path("target_histograms.csv"),
     }

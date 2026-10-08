@@ -1,12 +1,13 @@
-"""Command-line argument parsing and entry point.
+"""Command-line argument parsing, reporting, and entry point.
 
 `main(argv)` returns an exit code rather than calling `sys.exit`, so the CLI
-is fully testable in-process. Human-readable reporting and error formatting
-are implemented in TASK-18; this module only handles parsing, validation,
-and the exit-code contract.
+is fully testable in-process. This is the tool's only UI: success is a
+compact report on stdout, failure is a single-line `error: ...` on stderr
+with no traceback.
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import lumamatch
@@ -14,8 +15,10 @@ from lumamatch.histogram import DEFAULT_BINS
 from lumamatch.io_image import SUPPORTED_EXTENSIONS
 from lumamatch.paths import CSV_SUFFIX, MATCHED_SUFFIX
 from lumamatch.pipeline import match_luminance
+from lumamatch.result import MatchResult
 
 DEFAULT_QUALITY = 95
+_LABEL_WIDTH = 11
 
 
 def _positive_bins(value: str) -> int:
@@ -95,20 +98,51 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def format_report(result: MatchResult) -> str:
+    """Render `result` as the multi-line success report printed to stdout."""
+    ref_h, ref_w = result.reference_shape
+    tgt_h, tgt_w = result.target_shape
+
+    def label(text: str) -> str:
+        return f"{text:<{_LABEL_WIDTH}}"
+
+    lines = [
+        f"{label('reference:')}{result.reference_path.name} "
+        f"({ref_w}x{ref_h}, {result.reference_pixels} px)",
+        f"{label('target:')}{result.target_path.name} ({tgt_w}x{tgt_h}, {result.target_pixels} px)",
+        f"{label('bins:')}{result.bins}",
+        f"{label('EMD:')}{result.emd_before:.3f} -> {result.emd_after:.3f} L* "
+        f"({result.emd_reduction * 100:.2f}% reduction)",
+        f"{label('clipped:')}{result.clipped_fraction * 100:.2f}% of pixels",
+        "",
+        f"wrote {result.image_out}",
+        f"wrote {result.csv_out}",
+    ]
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse arguments, run the pipeline, and return a process exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
 
     try:
-        match_luminance(
+        result = match_luminance(
             reference_path=args.reference,
             target_path=args.target,
             bins=args.bins,
             force=args.force,
             quality=args.quality,
         )
-    except Exception:
+    except (FileNotFoundError, ValueError, FileExistsError, PermissionError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
+    except Exception as exc:
+        print(f"error: unexpected failure: {exc}", file=sys.stderr)
+        return 1
+
+    # --quiet suppresses the success report only; errors above always print.
+    if not args.quiet:
+        print(format_report(result))
 
     return 0

@@ -34,6 +34,8 @@ class MatchResult:
     clipped_fraction: float
     reference_pixels: int
     target_pixels: int
+    reference_shape: tuple[int, int]
+    target_shape: tuple[int, int]
     image_out: Path
     csv_out: Path
 
@@ -64,6 +66,13 @@ class MatchResult:
                     f"{name} sums to {int(arr.sum())}, "
                     f"expected target_pixels ({self.target_pixels})"
                 )
+
+        for name, shape, pixels in (
+            ("reference_shape", self.reference_shape, self.reference_pixels),
+            ("target_shape", self.target_shape, self.target_pixels),
+        ):
+            if shape[0] * shape[1] != pixels:
+                raise ValueError(f"{name} {shape} does not match its pixel count ({pixels})")
 
         for name in ("edges", "hist_reference", "hist_target", "hist_target_matched", "lut"):
             getattr(self, name).flags.writeable = False

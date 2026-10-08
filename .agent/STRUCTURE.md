@@ -10,11 +10,11 @@
 | `histogram.py` | created | Fixed-domain 256-bin L* histogram: `l_histogram`, `bin_edges`, `bin_centers`, `bin_width`, `to_pmf`. |
 | `emd.py` | created | 1-D Earth Mover's Distance between histograms: `emd`, `emd_reduction`. |
 | `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `apply_lut`, `assert_monotonic`. |
-| `result.py` | created | `MatchResult` frozen dataclass: hand-off object between pipeline, CSV writer, and CLI reporter; validates shapes/sums and freezes arrays read-only. |
+| `result.py` | created | `MatchResult` frozen dataclass: hand-off object between pipeline, CSV writer, and CLI reporter; validates shapes/sums (including `reference_shape`/`target_shape` against pixel counts) and freezes arrays read-only. |
 | `paths.py` | created | `resolve_outputs`: derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` beside the target image; all-or-nothing overwrite guard. |
 | `pipeline.py` | created | `match_luminance` end-to-end orchestration: load, convert, histogram, LUT, apply, save, re-measure, write CSV. |
 | `csv_writer.py` | created | `write_histogram_csv`/`read_histogram_csv`: commented 3-histogram CSV artifact. |
-| `cli.py` | created | `build_parser`, `main(argv) -> int`: argument parsing, validation, exit-code contract. Reporting/error formatting is TASK-18. |
+| `cli.py` | created | `build_parser`, `format_report`, `main(argv) -> int`: argument parsing, the stdout success report, and single-line stderr error handling with a 2/1 exit-code contract. |
 | `__main__.py` | created | `python -m lumamatch` entry point; three-line `sys.exit(main())` shim. |
 
 Note: `src/` also contains an unrelated Node/Playwright scaffold (`package.json`,
@@ -41,6 +41,7 @@ must not be modified.
 | `test_csv_writer.py` | created | `write_histogram_csv` comment-block/header structure, column sums against `MatchResult` totals, metadata round-trip, numeric formatting (no decimals/scientific notation in counts, full L* domain span). |
 | `test_pipeline.py` | created | `match_luminance` integration: EMD reduction on a synthetic pair, both outputs written, output dimensions match target, a*/b* approximately preserved, overwrite guard (zero side effects) and `force=True` bypass. |
 | `test_cli_args.py` | created | `build_parser` defaults, `--bins`/`--quality` validation (`SystemExit` code 2), missing positionals, `--force`/`--quiet` flags; `main()` real run returns 0 and writes both outputs. |
+| `test_cli_report.py` | created | `format_report`/`main()` success report content and EMD formatting; error path for every exception class (`FileNotFoundError`, unsupported extension, corrupt file, `FileExistsError` mentioning `--force`, unexpected exception); `--quiet` suppresses success output but not errors. |
 
 Further test modules (random monotonic curve round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.

@@ -91,6 +91,8 @@ def match_luminance(
         clipped_fraction=clipped_fraction,
         reference_pixels=reference_pixels,
         target_pixels=target_pixels,
+        reference_shape=ref_rgb.shape[:2],
+        target_shape=tgt_rgb.shape[:2],
         image_out=image_out,
         csv_out=csv_out,
     )

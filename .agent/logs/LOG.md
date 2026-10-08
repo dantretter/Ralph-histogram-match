@@ -3,12 +3,35 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 17 / 26
-**Current Task:** TASK-17 Complete
+**Tasks Completed:** 18 / 26
+**Current Task:** TASK-18 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-18: Implement CLI reporting output and error handling
+
+Added `format_report(result: MatchResult) -> str` to `src/lumamatch/cli.py`: a pure formatter
+producing the aligned success report (`reference:`/`target:` with `WxH, N px`, `bins:`, `EMD:`
+with 3-decimal `before -> after L*` and 2-decimal percent reduction, `clipped:` as a 2-decimal
+percent, then both output paths last, one per line). Added `reference_shape`/`target_shape`
+`tuple[int, int]` fields to `MatchResult` (per TASK-18 step 3) with `__post_init__` validation
+that each shape's pixel product matches its corresponding pixel count; wired them through from
+`pipeline.py`'s `ref_rgb.shape[:2]`/`tgt_rgb.shape[:2]`, and updated the `_make_valid` fixtures in
+`test_result.py`/`test_csv_writer.py` to supply them. Rewrote `main()`'s error handling: a single
+`except` clause for `(FileNotFoundError, ValueError, FileExistsError, PermissionError, OSError)`
+prints `error: {exc}` to stderr and returns 2 (the underlying messages from `paths.py`/`io_image.py`
+already name the offending file/directory and, for `FileExistsError`, mention `--force`); a final
+`except Exception` prints `error: unexpected failure: {exc}` and returns 1, so a genuine bug is
+still distinguishable from an expected user error and never prints a traceback. `--quiet` only
+guards the `print(format_report(result))` call; error printing is unconditional, with a comment
+noting this so it isn't "simplified" away later. Added `tests/test_cli_report.py` covering the
+report's content/formatting via regex, every error class above (asserting empty stdout and a
+leading `error:` on stderr), the overwrite guard's `--force` mention plus a successful forced
+rerun, `--quiet` suppressing success output, `--quiet` still emitting errors, and a monkeypatched
+`match_luminance` to exercise the unexpected-exception branch. Manually ran the CLI on real PNGs
+to confirm column alignment. `pytest` (225 passed) and `ruff check`/`format` clean.
 
 ## 2026-10-08 — TASK-17: Implement CLI argument parsing and entry point
 

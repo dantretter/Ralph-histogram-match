@@ -21,6 +21,8 @@ def _make_valid(bins: int = 4, **overrides) -> MatchResult:
         "clipped_fraction": 0.0,
         "reference_pixels": 10,
         "target_pixels": 10,
+        "reference_shape": (2, 5),
+        "target_shape": (2, 5),
         "image_out": Path("target_matched.png"),
         "csv_out": Path("target_histograms.csv"),
     }
@@ -66,6 +68,11 @@ def test_raises_when_hist_target_sum_disagrees_with_target_pixels():
 def test_raises_when_hist_reference_sum_disagrees_with_reference_pixels():
     with pytest.raises(ValueError, match="reference_pixels"):
         _make_valid(hist_reference=np.array([1, 1, 1, 1], dtype=np.int64))
+
+
+def test_raises_when_reference_shape_disagrees_with_reference_pixels():
+    with pytest.raises(ValueError, match="reference_shape"):
+        _make_valid(reference_shape=(3, 5))
 
 
 def test_arrays_are_read_only():
