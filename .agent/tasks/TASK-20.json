@@ -1,0 +1,69 @@
+{
+  "id": "TASK-20",
+  "title": "Build synthetic reference image test fixture",
+  "category": "functional",
+  "description": "Create `tests/images.py` producing deterministic synthetic RGB images with a wide, well-populated L* distribution and real chroma. The round-trip test's difficulty depends entirely on this fixture: a flat or narrow-histogram image would make the match trivially easy and hide real bugs, so the generator must fill most of the L* range and include saturated colors that stress the gamut-clipping path.",
+  "acceptanceCriteria": [
+    "`synthetic_reference(rng, height=128, width=192) -> np.ndarray` returns uint8 (H, W, 3)",
+    "The same seed produces a byte-identical image (determinism)",
+    "The image's L* histogram at 256 bins has at least 200 non-empty bins, proving a broad distribution",
+    "The image contains saturated colors: at least some pixels have Lab chroma `sqrt(a*^2 + b*^2) > 40`",
+    "The image is not a flat gradient only — it includes distinct colored regions and mild noise",
+    "L* spans at least [5, 95]",
+    "`flat_image(value, height, width) -> np.ndarray` produces a single-color image for the degenerate edge-case tests",
+    "`gradient_image(height, width) -> np.ndarray` produces a smooth grayscale ramp for the banding test",
+    "A self-test asserts every property above; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create tests/images.py",
+      "details": "Import numpy and the project's `srgb_to_lab` and `l_histogram` (used by the self-test). All generators take an explicit `rng` where randomness is involved so results are reproducible.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Build the base gradient layer",
+      "details": "Create a 2-D diagonal luminance ramp with `np.linspace` over both axes combined (e.g. `(x_ramp[None, :] + y_ramp[:, None]) / 2`) scaled to the full 0-255 range. Broadcast to three channels. This guarantees broad L* coverage before anything else is added.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Overlay saturated colored patches",
+      "details": "Stamp several rectangular patches with strongly saturated colors (pure red, green, blue, cyan, magenta, yellow, plus a couple of random saturated RGB triplets from `rng`). Place them at deterministic positions computed from the image size so the layout scales with H and W. These are what exercise the gamut-clipping path in TASK-5.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Add mild noise and clip",
+      "details": "Add `rng.normal(0, 4, size=shape)` and clip to [0, 255] before casting to uint8. The noise fills in histogram bins that a pure gradient would leave sparsely populated, which is what makes the >=200-non-empty-bins criterion achievable.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Add the simple generators",
+      "details": "Write `flat_image(value, height=32, width=32)` returning `np.full((h, w, 3), value, dtype=np.uint8)` for degenerate tests, and `gradient_image(height=64, width=1024)` returning a smooth grayscale ramp (identical across channels) for the anti-banding check.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write the fixture self-test",
+      "details": "Create `tests/test_images.py`: (a) determinism — two calls with the same seed are `np.array_equal`; (b) shape and dtype; (c) convert to Lab, histogram L* at 256 bins, assert `np.count_nonzero(counts) >= 200`; (d) assert `l.min() <= 5` and `l.max() >= 95`; (e) assert `np.max(np.hypot(lab[...,1], lab[...,2])) > 40`; (f) `flat_image(128)` has exactly one unique value; (g) `gradient_image()` has more than 200 unique grey levels.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. If the non-empty-bin count falls short, increase the noise sigma or the gradient's span rather than lowering the threshold.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-9"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "The >=200-non-empty-bins assertion is a guard on the fixture's quality, not on the product. If it ever starts failing, the fixture got weaker and the round-trip test silently got easier — fix the fixture.",
+    "Keep the image small (128x192 default) so the full 6-seed round-trip suite stays fast; that is still ~25k pixels, plenty to populate 256 bins.",
+    "Saturated patches are deliberately included so `clipped_fraction` is sometimes non-zero in the pipeline tests, exercising a code path that a pure grayscale fixture would never reach.",
+    "Do not seed from the global numpy random state; every generator takes `rng` explicitly."
+  ]
+}

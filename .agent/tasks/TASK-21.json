@@ -1,0 +1,77 @@
+{
+  "id": "TASK-21",
+  "title": "Round-trip matching test over 6 random monotonic curves",
+  "category": "functional",
+  "description": "The primary correctness gate for the whole project, implementing the verification procedure from the original requirements: take a reference image, apply a random monotonic tone mapping to its L* to manufacture 'image 2', run the pipeline, and confirm the modified image 2 matches image 1 within tolerance. Repeat over 6 seeded random curves so a single lucky curve cannot produce a false pass.",
+  "acceptanceCriteria": [
+    "`tests/test_roundtrip.py` is parametrized over exactly 6 distinct seeds",
+    "For each seed: a synthetic reference is built, a random monotonic curve is applied to its L* to produce the target, both are saved as PNG in `tmp_path`, and `match_luminance` is run",
+    "Each case asserts `emd_after <= 0.05 * emd_before` (>= 95% EMD reduction)",
+    "Each case asserts `mean(|L_matched - L_reference|) < 1.0`",
+    "Each case asserts the recovered LUT is non-decreasing",
+    "Each case asserts the output image dimensions equal the target's",
+    "The failure message for each assertion includes the seed, so any failure is immediately reproducible",
+    "The test uses PNG (lossless) so codec error cannot contaminate the tolerance",
+    "The full 6-case suite completes in under 30 seconds",
+    "All 6 cases pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Set up the parametrized test",
+      "details": "Create `tests/test_roundtrip.py` with `SEEDS = [11, 23, 37, 101, 202, 4242]` and `@pytest.mark.parametrize('seed', SEEDS)`. Six explicit seeds (rather than a loop inside one test) means each case reports independently and a failure names the exact seed.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Manufacture the reference and target images",
+      "details": "`rng = np.random.default_rng(seed)`. Build `ref_rgb = synthetic_reference(rng)` from `tests/images.py`. Build `curve = random_monotonic_curve(rng, bins=256)` and `tgt_rgb = apply_curve_to_image(ref_rgb, curve, bin_edges(256))` from `tests/curves.py`. The target is now a tonally-distorted version of the reference with identical a*/b* structure.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Save both images losslessly and run the pipeline",
+      "details": "Use `save_rgb` to write `ref.png` and `tgt.png` into `tmp_path`. Then `result = match_luminance(ref_path, tgt_path, bins=256)`. PNG is mandatory here — a JPEG would add compression error on the same order as the tolerance and make failures ambiguous.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Assert the EMD reduction",
+      "details": "`assert result.emd_after <= 0.05 * result.emd_before, f'seed={seed}: EMD {result.emd_before:.4f} -> {result.emd_after:.4f} ({result.emd_reduction*100:.1f}% reduction, need >=95%)'`. Also assert `result.emd_before > 0.1` first — if the random curve happened to barely change the image, the relative test would be meaningless, so confirm the distortion was real before asserting it was corrected.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Assert the per-pixel L* recovery",
+      "details": "Load the written output with `load_rgb`, convert to Lab, and compare its L* to the reference's L*: `mean_abs = float(np.mean(np.abs(l_out - l_ref)))`. Assert `mean_abs < 1.0` with the seed and the actual value in the message. This is the check that the image genuinely looks like image 1, not merely that the histograms agree.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Assert the structural invariants",
+      "details": "Assert `np.all(np.diff(result.lut) >= 0)` (monotonic LUT) and that the loaded output's `.shape` equals `tgt_rgb.shape`. Include the seed in both messages.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Add a diagnostic on failure",
+      "details": "Wrap the assertions so that on failure the message also reports `result.clipped_fraction` and the curve's range (`curve[0]`, `curve[-1]`). A high clipped fraction or an extremely compressed curve range explains most legitimate near-misses and saves debugging time.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify and time the suite",
+      "details": "Run `.venv/bin/pytest tests/test_roundtrip.py -q --durations=10`. All 6 must pass and the total must be under 30s. Then run the whole suite `.venv/bin/pytest -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-16", "TASK-19", "TASK-20"],
+  "estimatedComplexity": "high",
+  "technicalNotes": [
+    "This is the test that decides whether the project works. Do not weaken either tolerance to make it pass — investigate instead. The two most common real causes of a near-miss are the bin-centers-vs-edges alignment in apply_lut and the cdf[-1]=1.0 normalization in build_lut.",
+    "A monotonic tone mapping is not always exactly invertible (the original requirements acknowledge this), which is why the tolerance is relative EMD reduction plus a mean rather than a max per-pixel bound. A max-error bound would be dominated by a handful of clipped pixels.",
+    "8-bit quantization alone contributes roughly 0.2 L* of mean error, so the 1.0 threshold leaves real headroom while still being tight enough to catch a genuine half-bin misalignment (~0.2) compounding with other errors.",
+    "The `emd_before > 0.1` precondition guards against a degenerate near-identity curve producing a vacuous pass.",
+    "If one specific seed fails while the other five pass, print that curve and check whether it compressed the range so hard that information was genuinely destroyed — then pick a different seed only if the cause is provably fixture-side, and document why."
+  ]
+}

@@ -1,0 +1,24 @@
+# Project Requirements
+This project is to write a Python program that will read in two RGB images, adjust the second one so its luminance histogram matches the first as closely as possible, and then save the modified second image.  It will also output the three histograms (first image, second image, and new second image) as a CSV file.  The saved files will be in the same folder as the second image.
+
+More specifically, the program will perform the following steps:
+1. Read and store two RGB images in HIEC, JPG, or PNG format
+2. Convert each image to CIELab format
+3. Compute the L* histogram for each image
+4. Find the tone mapping that, when applied to the second image, results in a histogram as close as possible to the histogram of the first image.  Ensure that the tone mapping is monotonic, such that if pixel A is darker than pixel B in the original second image, it will not be lighter than pixel B in the modified image after applying the tone mapping.
+5. Minimize the Earthmover's distance between the first image histogram and the modified second image histogram to find the best match.
+6. Apply the tone mapping to the second image, convert to RGB, and save the modified image to file.
+7. Save the histograms of the two input images and the histogram of the modified second image to a CSV file.
+
+To test the code, take an example RGB image, convert to CIELab, and apply a random monotonic tone mapping to L* and convert back to RGB.  This will be the second image while the original image will be the first one.  Run the program and ensure that the modified second image matches the first image (within some margin of error as the tone mapping might not be exactly invertible).  Run through about a half dozen random tone mappings to test the program multiple times before deciding it is working properly.
+
+Some tasks that will need to be done are:
+ - Read in HEIC, JPG, or PNG image and convert to CIELab
+ - compute L* histograms
+ - compute Earthmover's distance between two histograms
+ - find the tone mapping that best matches the histograms (Could just go from darkest to lightest bins and adjust tone mapping for each to best match the corresponding bin in image 1)
+ - Apply tone mapping to an image L* component
+ - Convert image from CIELab to RGB
+ - Save histograms to CSV file
+ - Write output image file for modified image
+ 

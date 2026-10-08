@@ -1,0 +1,77 @@
+{
+  "id": "TASK-17",
+  "title": "Implement CLI argument parsing and entry point",
+  "category": "functional",
+  "description": "Create `src/lumamatch/cli.py` and `src/lumamatch/__main__.py` so the tool runs as `python -m lumamatch REFERENCE TARGET [options]`. This task covers argument definition, validation, and the exit-code contract; the formatted human output lives in TASK-18.",
+  "acceptanceCriteria": [
+    "`python -m lumamatch REFERENCE TARGET` runs the pipeline and exits 0 on success",
+    "`--bins N` is accepted, defaults to 256, and a value below 2 is rejected by argparse with exit code 2",
+    "`--force` is a boolean flag that is threaded through to `resolve_outputs`",
+    "`--quiet` is a boolean flag that suppresses all non-error output",
+    "`--quality N` is accepted (default 95) and constrained to 1-100",
+    "`--version` prints the package version and exits 0",
+    "`-h/--help` shows usage listing all options and the supported input formats",
+    "`main(argv: list[str] | None = None) -> int` returns the exit code rather than calling sys.exit, so it is directly unit-testable",
+    "`__main__.py` is a three-line shim calling `sys.exit(main())`",
+    "Missing positional arguments produce argparse's usage error and exit code 2",
+    "Unit tests call `main([...])` directly and assert return codes; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Build the argument parser",
+      "details": "Write `build_parser() -> argparse.ArgumentParser` with `prog='lumamatch'` and a description explaining the tool matches the second image's L* histogram to the first's. Add positionals `reference` and `target` (both `type=Path`) with help text naming which is which unambiguously ('reference: the image whose tonality is the target to match' / 'target: the image that will be modified').",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Add the optional arguments",
+      "details": "Add `--bins` with `type=_positive_bins` (a custom function raising `argparse.ArgumentTypeError` for values < 2) and `default=DEFAULT_BINS`. Add `--quality` with a similar validator constrained to 1-100, default 95. Add `--force` and `--quiet` as `action='store_true'`. Add `--version` with `action='version'` using `lumamatch.__version__`.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Document supported formats in the epilog",
+      "details": "Set the parser `epilog` to list `SUPPORTED_EXTENSIONS` (sorted) and state that outputs are written beside the target image as `<name>_matched<ext>` and `<name>_histograms.csv`. Import the constants rather than hardcoding the strings.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Implement main() with the exit-code contract",
+      "details": "Write `main(argv=None) -> int`: parse args, call `match_luminance(...)` inside a try block, call the reporter from TASK-18 on success, and `return 0`. Do not call `sys.exit` inside `main` — returning the code keeps it unit-testable. Error handling detail is TASK-18; for now catch `Exception` broadly enough to return 2 and re-raise nothing.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Create the __main__ shim",
+      "details": "Create `src/lumamatch/__main__.py` containing only `import sys`, `from lumamatch.cli import main`, `sys.exit(main())` guarded by `if __name__ == '__main__':`. Keep all logic in cli.py so the shim never needs tests.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write unit tests for parsing",
+      "details": "Create `tests/test_cli_args.py`: (a) `build_parser().parse_args(['a.png','b.png'])` gives bins==256, quality==95, force is False, quiet is False; (b) `--bins 512` parses; (c) `parse_args` with `--bins 1` raises SystemExit with code 2; (d) `--bins 0` and `--bins -5` likewise; (e) `--quality 101` raises SystemExit; (f) missing positionals raise SystemExit code 2; (g) `--force --quiet` both set True.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test main() returns 0 on a real run",
+      "details": "In the same module, write two small PNGs to `tmp_path` and assert `main([str(ref), str(tgt)]) == 0` and that both output files now exist. Use `capsys` to swallow the printed report.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q`, `.venv/bin/ruff check src tests`, and manually confirm `.venv/bin/python -m lumamatch --help` and `--version` both work from the repo root (with `PYTHONPATH=src`).",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-16"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "`main(argv)` returning an int rather than calling sys.exit is the single most important testability decision in this task — it lets every CLI behavior be tested in-process without subprocess overhead.",
+    "argparse already exits 2 for usage errors, which matches the PRD's error exit code, so no custom handling is needed for bad flags.",
+    "The reference/target help text must be unmistakable. Getting the two swapped is the most likely user error, and the argument order (reference first) mirrors the requirement's 'first image' / 'second image' wording.",
+    "No console_scripts entry point is needed since there is no installable package; `python -m lumamatch` is the documented invocation."
+  ]
+}

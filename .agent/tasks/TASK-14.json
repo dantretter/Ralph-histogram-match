@@ -1,0 +1,71 @@
+{
+  "id": "TASK-14",
+  "title": "Implement output path resolution and overwrite guard",
+  "category": "functional",
+  "description": "Create `src/lumamatch/paths.py` deriving both output paths from the target image path and refusing to clobber existing files without `--force`. Both outputs land in the target image's directory per the requirements. The guard must be all-or-nothing: if either output exists, nothing is written at all, so a rejected run leaves the directory exactly as it was.",
+  "acceptanceCriteria": [
+    "`resolve_outputs(target_path, force=False) -> tuple[Path, Path]` returns (image_out, csv_out)",
+    "image_out is `<target_stem>_matched<target_suffix>` in the target's parent directory",
+    "csv_out is `<target_stem>_histograms.csv` in the target's parent directory",
+    "The suffix case of the input is preserved for the image output (a `.PNG` input yields `_matched.PNG`)",
+    "If either output exists and `force` is False, `FileExistsError` is raised naming the existing file and mentioning `--force`",
+    "If BOTH outputs exist and force is False, the error names the image output (the first conflict) and still writes nothing",
+    "If either output exists and `force` is True, no error is raised",
+    "The target path is resolved with expanduser before deriving outputs, so `~/photo.jpg` works",
+    "Outputs are never placed outside the target's parent directory",
+    "A target path whose parent is not writable raises `PermissionError` with a clear message",
+    "Unit tests cover every branch; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create paths.py with the naming constants",
+      "details": "Define `MATCHED_SUFFIX = '_matched'` and `CSV_SUFFIX = '_histograms'` and `CSV_EXTENSION = '.csv'` as module constants so the naming scheme has one source of truth shared with the README and tests.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Derive the two output paths",
+      "details": "Coerce to `Path`, apply `.expanduser()`, then take `parent = target.parent`, `stem = target.stem`, `suffix = target.suffix`. Build `image_out = parent / f'{stem}{MATCHED_SUFFIX}{suffix}'` and `csv_out = parent / f'{stem}{CSV_SUFFIX}{CSV_EXTENSION}'`. Preserve `suffix` verbatim so case is retained.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Implement the all-or-nothing existence check",
+      "details": "When `force` is False, check `image_out.exists()` then `csv_out.exists()` in that order and raise `FileExistsError(f\"{path} already exists (use --force to overwrite)\")` on the first hit. Perform both checks before returning so no caller can start work on a half-valid pair.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Check directory writability",
+      "details": "Verify `parent.is_dir()`, raising `FileNotFoundError` if not. Then check write access with `os.access(parent, os.W_OK)` and raise `PermissionError(f'cannot write to {parent}')` if it fails. Catching this here rather than mid-pipeline means a permissions problem is reported before any image is decoded.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Guard against a self-referential target",
+      "details": "If the target path itself already ends with `MATCHED_SUFFIX + suffix`, the derived output would be `foo_matched_matched.png` — harmless but confusing. Allow it, but add a short comment noting the behavior is intentional (no special-casing) so a future reader does not treat it as a bug.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write unit tests",
+      "details": "Create `tests/test_paths.py` using `tmp_path`: (a) `photo.jpg` yields `photo_matched.jpg` and `photo_histograms.csv` in the same dir; (b) `.PNG` input preserves the uppercase suffix; (c) pre-creating `photo_matched.jpg` and calling with force=False raises FileExistsError whose message contains 'photo_matched.jpg' and '--force'; (d) same but with only the CSV pre-created; (e) both pre-created with force=True raises nothing; (f) a target in a nonexistent directory raises FileNotFoundError; (g) a read-only directory (chmod 0o500) raises PermissionError.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. Note: restore permissions on any chmod'd tmp dir in a fixture teardown so pytest can clean up.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-3"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "This module must have no dependency on numpy, PIL, or any other project module — it is pure pathlib/os and should stay trivially testable.",
+    "The `_matched` suffix is what protects the user's original photo from being overwritten; the FileExistsError protects a previous run's results. Both matter and both are tested.",
+    "The read-only-directory test may behave differently when run as root (os.access returns True regardless). Skip that test with `pytest.mark.skipif(os.geteuid() == 0)` to keep the suite honest.",
+    "Do not add a `--out-image`/`--out-csv` override; the PRD chose the fixed naming scheme."
+  ]
+}

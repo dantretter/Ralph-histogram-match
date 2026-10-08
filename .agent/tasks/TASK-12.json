@@ -1,0 +1,75 @@
+{
+  "id": "TASK-12",
+  "title": "Implement interpolated LUT application to L* channel",
+  "category": "functional",
+  "description": "Add `apply_lut` to `src/lumamatch/tonemap.py`, mapping a per-pixel L* array through the bin-resolution LUT with linear interpolation. Interpolation rather than bin snapping is required: snapping would quantize every pixel to one of `bins` discrete L* values and produce visible banding in smooth gradients.",
+  "acceptanceCriteria": [
+    "`apply_lut(l_star, lut, edges) -> np.ndarray` returns float64 of the same shape as `l_star`",
+    "Output values lie within [0, 100]",
+    "Output is monotonic in the input: sorting the input and mapping yields a non-decreasing output",
+    "Two pixels with equal input L* always produce equal output L*",
+    "Input below the first bin center clamps to `lut[0]`; input above the last bin center clamps to `lut[-1]` (no extrapolation past the ends)",
+    "A gradient input produces a smooth output with more than `bins` distinct values, demonstrating interpolation rather than snapping",
+    "An identity LUT (bin centers) returns the input within one half bin width",
+    "Mismatched lut/edges lengths raise `ValueError`",
+    "Unit tests cover all the above including an explicit banding check; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Validate inputs",
+      "details": "Raise `ValueError` if `len(lut) + 1 != len(edges)`. Call the existing `assert_monotonic(lut)` from TASK-11 so a hand-constructed bad LUT cannot be applied silently.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Interpolate against bin centers",
+      "details": "`centers = bin_centers(edges)`. Return `np.interp(l_star, centers, lut)`. Using centers (not edges) as the x-grid is what makes the mapping continuous and correctly aligned with how `build_lut` indexed its output — one LUT value per bin, located at that bin's center.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Rely on np.interp's clamping and clip the range",
+      "details": "np.interp clamps to `lut[0]` and `lut[-1]` outside the xp range by default, which is the desired behavior for the sub-first-center and super-last-center tails. Then apply `np.clip(result, L_MIN, L_MAX)` and ensure the returned dtype is float64 with the input's shape preserved.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Preserve shape for multi-dimensional input",
+      "details": "np.interp flattens its input. Reshape the result back with `.reshape(l_star.shape)` so an (H,W) L* plane comes back as (H,W). Add a test asserting shape preservation for a (7,11) input.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test monotonicity and equality preservation",
+      "details": "In `tests/test_tonemap_apply.py`: build a random LUT via `build_lut` on random histograms; apply to `np.sort(random_l_values)` and assert `np.all(np.diff(out) >= 0)`. Separately, apply to an array containing duplicate values and assert the duplicates map to identical outputs.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test that interpolation actually happens (no banding)",
+      "details": "Build a 1024-sample linear L* ramp from 0 to 100 and a non-trivial LUT with bins=16. Assert `len(np.unique(apply_lut(ramp, lut, edges))) > 16` — proof that the output is not quantized to the 16 LUT values. This is the anti-banding regression test.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test identity, clamping, and error paths",
+      "details": "Identity: pass `lut = bin_centers(edges)` and assert output is within `bin_width/2` of the input for values inside [centers[0], centers[-1]]. Clamping: assert `apply_lut(np.array([0.0]), ...) == lut[0]` and `apply_lut(np.array([100.0]), ...) == lut[-1]`. Error: mismatched lengths raise ValueError.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-11"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Interpolating against bin CENTERS rather than edges is the subtle correctness point. Using edges would introduce a half-bin shift (about 0.2 L* at 256 bins) that shows up as a small but persistent EMD floor in TASK-21.",
+    "Clamping at the ends means the darkest and brightest pixels cannot be pushed beyond lut[0]/lut[-1]. That is intentional and preserves monotonicity; extrapolation could overshoot outside [0,100].",
+    "np.interp is O(n log bins) and fully vectorized — no need for a manual searchsorted implementation.",
+    "The banding test is the reason this design was chosen over bin snapping; do not weaken it if it fails, fix the interpolation."
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "id": "TASK-22",
+  "title": "Format coverage test for HEIC, JPG, and PNG",
+  "category": "functional",
+  "description": "Prove the tool works end to end for every supported input format, in every reference/target combination, and that the output preserves the target's format. Format handling is where the most environment-dependent breakage lives (libheif availability, JPEG subsampling, palette conversion), so this test is the canary for I/O regressions.",
+  "acceptanceCriteria": [
+    "`tests/test_formats.py` is parametrized over target formats `.png`, `.jpg`, `.heic`",
+    "Each case also varies the reference format independently, covering at least the 3 same-format pairs plus 2 mixed pairs (e.g. HEIC reference with PNG target)",
+    "For each case: the output image file exists, has non-zero size, and reloads successfully",
+    "The output file's format matches the target's extension (verified by reopening and checking `Image.open(path).format`)",
+    "Output dimensions equal the target's dimensions in every case",
+    "`emd_after < emd_before` in every case",
+    "The PNG target case asserts `mean(|L_matched - L_reference|) < 1.0` (same tolerance as the round-trip test)",
+    "The JPEG and HEIC target cases use a relaxed tolerance of `< 3.0` to absorb lossy compression, with a comment explaining why",
+    "The CSV is written in every case with the correct number of rows",
+    "All cases pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Set up the format matrix",
+      "details": "Define `PAIRS = [('.png','.png'), ('.jpg','.jpg'), ('.heic','.heic'), ('.heic','.png'), ('.png','.jpg')]` as (reference_ext, target_ext) and parametrize over it with readable ids. Define a `TOLERANCE = {'.png': 1.0, '.jpg': 3.0, '.heic': 3.0}` map keyed on the target extension.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Build and save the image pair in each format",
+      "details": "Use a fixed seed so the pair is identical across all parametrized cases (isolating format as the only variable). Build the reference with `synthetic_reference`, distort with one fixed `random_monotonic_curve` to make the target, then save each with `save_rgb` using the parametrized extensions in `tmp_path`.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Run the pipeline and assert the outputs exist",
+      "details": "Call `match_luminance(ref_path, tgt_path)`. Assert `result.image_out.exists()` and `result.image_out.stat().st_size > 0`, and the same for `result.csv_out`. Assert `result.image_out.suffix == target_ext`.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Assert the output format is genuinely correct",
+      "details": "Reopen the output with `Image.open(result.image_out)` and assert `img.format` equals the expected Pillow format name ('PNG', 'JPEG', or 'HEIF'). Checking the actual container format catches the failure mode where the extension is right but the encoder silently fell back to something else.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Assert dimensions and EMD improvement",
+      "details": "Load the output with `load_rgb`; assert its shape equals the target array's shape. Assert `result.emd_after < result.emd_before`, and additionally that `result.emd_reduction > 0.8` for all cases — lossy codecs cost some accuracy but should not halve the improvement.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Assert per-format L* tolerance",
+      "details": "Compute `mean(|L_out - L_ref|)` from the reloaded output and assert it is below `TOLERANCE[target_ext]`. Add a comment stating that the looser JPEG/HEIC bound absorbs codec error, not tone-mapping error, and that PNG is the case that actually validates the math.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Assert the CSV structure per case",
+      "details": "Parse `result.csv_out` with `read_histogram_csv` and assert the row count equals `result.bins` and that the metadata `image2` value matches the target path. This confirms the CSV is written correctly regardless of image format.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/test_formats.py -q`, then the full suite, then `.venv/bin/ruff check src tests`. If the HEIC cases fail with a libheif error rather than an assertion, that is an environment problem — report BLOCKED rather than working around it.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-21"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Pillow reports HEIC files with `format == 'HEIF'` (not 'HEIC') via pillow-heif. Assert against the correct string or the test will fail for the wrong reason.",
+    "Mixed-format pairs matter: they prove the pipeline never assumes the two inputs share a format, dimension, or pixel count.",
+    "The PNG case carries the real correctness signal; the lossy cases are there to prove the plumbing works, which is why their tolerance is deliberately looser rather than the PNG bound being loosened to match.",
+    "HEIC encode was verified available in this environment during TASK-1. If it regresses, that is an environment failure, not a code bug."
+  ]
+}

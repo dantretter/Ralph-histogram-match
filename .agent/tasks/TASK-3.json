@@ -1,0 +1,74 @@
+{
+  "id": "TASK-3",
+  "title": "Scaffold lumamatch Python package, requirements, and ruff config",
+  "category": "setup",
+  "description": "Create the Python package skeleton at `src/lumamatch/` alongside the existing (untouched) Node scaffold, declare dependencies, configure ruff and pytest, and create the initial STRUCTURE.md. After this task the package must be importable and `pytest` must run (collecting a single trivial import test).",
+  "acceptanceCriteria": [
+    "`src/lumamatch/__init__.py` exists and exposes a `__version__` string",
+    "`requirements.txt` at repo root pins numpy, pillow, pillow-heif, pytest, and ruff with `>=` minimums",
+    "`.venv/` is created and `.gitignore` includes `.venv/`",
+    "`pip install -r requirements.txt` completes successfully in the venv",
+    "`ruff.toml` exists with line-length 100 and a rule selection including E, F, I, UP, B",
+    "`pytest.ini` (or `[tool.pytest.ini_options]` in a pyproject) sets `testpaths = tests` and adds `src` to the import path so `import lumamatch` works without installation",
+    "`tests/test_import.py` asserts `import lumamatch` succeeds and `__version__` is a non-empty string",
+    "`pytest` exits 0 and `ruff check src tests` reports no errors",
+    "`.agent/STRUCTURE.md` exists and documents the `src/lumamatch/` and `tests/` layout"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create the package directory and __init__",
+      "details": "Create `src/lumamatch/__init__.py` containing `__version__ = \"0.1.0\"` and a short module docstring describing the tool. Do not import submodules here yet to keep import cost low; add re-exports in later tasks only if needed.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Write requirements.txt",
+      "details": "At repo root create `requirements.txt` with: `numpy>=2.0`, `pillow>=11.0`, `pillow-heif>=1.0`, `pytest>=8.0`, `ruff>=0.6`. One per line, no pinned exact versions.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Create and populate the venv",
+      "details": "Run `python3 -m venv .venv`, then `.venv/bin/pip install -r requirements.txt`. Append `.venv/` to `.gitignore` if absent. Use `.venv/bin/python` and `.venv/bin/pytest` for all subsequent commands in this and later tasks.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Configure ruff",
+      "details": "Create `ruff.toml` at repo root with `line-length = 100`, `[lint] select = [\"E\", \"F\", \"I\", \"UP\", \"B\"]`, and `exclude = [\".venv\", \"src/node_modules\"]`. The exclude is essential — `src/` contains a large `node_modules` tree that must not be scanned.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Configure pytest import paths",
+      "details": "Create `pytest.ini` at repo root with `[pytest]`, `testpaths = tests`, and `pythonpath = src`. The `pythonpath` setting (pytest 7+) makes `import lumamatch` resolve without an editable install.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Add the smoke test",
+      "details": "Create `tests/__init__.py` (empty) and `tests/test_import.py` with a single test: `import lumamatch; assert isinstance(lumamatch.__version__, str) and lumamatch.__version__`.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify the toolchain end to end",
+      "details": "Run `.venv/bin/pytest` (must exit 0, 1 test passed), `.venv/bin/ruff check src tests` (no errors), and `.venv/bin/ruff format --check src tests`. Fix any findings.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Create STRUCTURE.md",
+      "details": "Create `.agent/STRUCTURE.md` listing the planned layout: `src/lumamatch/` (color.py, io_image.py, histogram.py, emd.py, tonemap.py, pipeline.py, csv_writer.py, paths.py, cli.py, __main__.py) and `tests/`. Mark files not yet created as planned. Exclude dotfiles, configs, and the unrelated Node scaffold.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-1", "TASK-2"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "Do NOT touch `src/package.json`, `src/node_modules`, `src/playwright.config.ts`, or `src/vitest.config.ts` — they belong to an unrelated scaffold and must be left in place.",
+    "The ruff `exclude` for `src/node_modules` is not optional; without it ruff will attempt to lint thousands of vendored JS-adjacent files and be unusably slow.",
+    "Keep every module under 300 lines per the project code-quality standard; the planned file split in STRUCTURE.md is designed to make that automatic."
+  ]
+}

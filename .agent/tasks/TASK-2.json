@@ -1,0 +1,55 @@
+{
+  "id": "TASK-2",
+  "title": "Update .agent/PROMPT.md for a Python project",
+  "category": "documentation",
+  "description": "The current `.agent/PROMPT.md` instructs the Ralph loop agent to run `npm run dev` on localhost:3000, do Playwright smoke tests, save UI screenshots, and run eslint/prettier/tsc. None of that applies to a Python CLI, and following it would stall or waste loop iterations. Rewrite the Required Setup and Task Flow sections for a Python workflow while leaving the one-task-per-invocation contract, promise tags, help tags, and logging behavior completely intact.",
+  "acceptanceCriteria": [
+    "The `Required Setup` section describes creating/activating a venv and running `pip install -r requirements.txt` instead of `npm run dev`",
+    "No reference to localhost:3000, npm, or a dev server remains in PROMPT.md",
+    "The Playwright/screenshot step is removed, and no step requires a browser",
+    "The eslint/prettier/tsc step is replaced with `ruff check --fix`, `ruff format`, and `pytest`",
+    "The one-task-per-invocation rule, `<promise>TASK-{ID}:DONE</promise>`, `<promise>COMPLETE</promise>`, BLOCKED, and DECIDE tag behavior are unchanged",
+    "The LOG.md logging step is retained but no longer references a screenshot path",
+    "The STRUCTURE.md update step is retained",
+    "`.agent/screenshots/` is no longer referenced anywhere in PROMPT.md"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Read the current PROMPT.md",
+      "details": "Open `.agent/PROMPT.md` and identify every Node/browser-specific instruction: the `Required Setup` block, task-flow step 5 (Playwright smoke test), step 6 (eslint/prettier/e2e), step 7 (tsc), and step 10's screenshot path reference.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Rewrite the Required Setup section",
+      "details": "Replace with: create the venv once (`python3 -m venv .venv`), activate it (`source .venv/bin/activate`), and install deps (`pip install -r requirements.txt`). Note that no server needs to run because this is a CLI tool. Keep the section short.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Replace the verification steps",
+      "details": "Delete the Playwright/screenshot step entirely. Replace the lint/format step with `ruff check --fix src` then `ruff format src`. Replace the `tsc` + project-wide test step with `pytest` run from the repo root. Keep the rule that all tests must pass and that broken unrelated tests must be fixed before proceeding.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Clean up the logging step",
+      "details": "Keep the LOG.md step (date, brief summary, newest at top) but drop the screenshot path field. Retain the STRUCTURE.md update step and the Conventional Commit requirement.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Verify nothing else was disturbed",
+      "details": "Diff the file. Confirm the ONE TASK PER INVOCATION banner, the Rules section, the promise tag formats, and the Help Tags section (BLOCKED/DECIDE) are byte-identical to before. Grep for `npm`, `playwright`, `3000`, `eslint`, `tsc`, `screenshot` and confirm zero hits.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-1"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "Do this before TASK-3 so subsequent loop iterations follow the correct workflow.",
+    "The `src/` directory also contains a pre-existing Node/Vitest scaffold (package.json, node_modules, playwright.config.ts). Leave those files alone; they are unrelated to this project and are not to be deleted.",
+    "`.agent/STRUCTURE.md` does not exist yet; TASK-3 creates it. Do not add a step here that requires reading it."
+  ]
+}

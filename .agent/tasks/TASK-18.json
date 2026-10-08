@@ -1,0 +1,83 @@
+{
+  "id": "TASK-18",
+  "title": "Implement CLI reporting output and error handling",
+  "category": "ui-ux",
+  "description": "Add the user-facing output layer to `src/lumamatch/cli.py`: a compact success report on stdout and single-line actionable errors on stderr with no tracebacks. This is the only UI the tool has, so clarity here is the whole user experience. Every number carries a unit and fixed precision, and the output paths are printed last so they can be copied.",
+  "acceptanceCriteria": [
+    "On success, stdout reports: reference dimensions, target dimensions, bin count, EMD before and after with the percent reduction, clipped-pixel percentage, and both output paths",
+    "EMD values print with 3 decimal places and the `L*` unit; percentages print with 2 decimal places and a `%` sign",
+    "Output paths are printed last, in full, one per line",
+    "`--quiet` suppresses all of the above but still prints errors",
+    "A `FileNotFoundError` prints `error: <message>` to stderr and returns exit code 2 with no traceback",
+    "A `ValueError` (unsupported format, corrupt file) prints `error: <message>` to stderr and returns 2",
+    "A `FileExistsError` prints an error naming the file and mentioning `--force`, and returns 2",
+    "A `PermissionError` prints an error naming the directory and returns 2",
+    "An unexpected exception still returns a non-zero code and prints a single-line error rather than a raw traceback",
+    "Nothing is printed to stdout on any error path",
+    "Unit tests assert output content with capsys and assert exit codes for every error class; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Write the report formatter as a pure function",
+      "details": "Write `format_report(result: MatchResult) -> str` returning the multi-line report. Making it pure (no printing) means the tests assert on a returned string rather than parsing captured stdout, and the CLI just prints what it returns.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Compose the report lines",
+      "details": "Lines in order: `reference: <path.name> (<W>x<H>, <N> px)`; `target:    <path.name> (<W>x<H>, <N> px)`; `bins:      <bins>`; `EMD:       <before:.3f> -> <after:.3f> L* (<reduction*100:.2f}% reduction)`; `clipped:   <clipped_fraction*100:.2f}% of pixels`; blank line; `wrote <image_out>`; `wrote <csv_out>`. Align the labels so the values form a column.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Store the dimensions needed for the report",
+      "details": "The report needs W and H, but MatchResult only carries pixel counts. Either add `reference_shape`/`target_shape` tuple fields to MatchResult (updating TASK-13's validation and the tests accordingly) or derive the report's dimension text in the pipeline. Prefer adding the two shape fields — the CSV metadata does not need them but the report does, and threading them through the result keeps `format_report` pure.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Implement the error handler",
+      "details": "In `main`, wrap the pipeline call in `try/except`. Catch `(FileNotFoundError, ValueError, FileExistsError, PermissionError, OSError)` as `exc`, print `f'error: {exc}'` to `sys.stderr`, and `return 2`. Add a final `except Exception as exc` printing `f'error: unexpected failure: {exc}'` and returning 1, so a bug still yields a clean message and a distinguishable code.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Wire up --quiet",
+      "details": "When `args.quiet` is set, skip the `print(format_report(result))` call entirely. Error printing must be unconditional — quiet suppresses success reporting, never diagnostics. Add a comment stating this so it is not 'simplified' later.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test the success report",
+      "details": "In `tests/test_cli_report.py`, run a real match in `tmp_path` via `main([...])` with capsys. Assert the captured stdout contains 'EMD', '-> ', 'L*', '% reduction', 'clipped', and both output filenames. Assert the EMD figures match `f'{result.emd_before:.3f}'` formatting by regex (three decimals).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test every error path",
+      "details": "Assert `main(['missing.png', str(tgt)]) == 2` with stderr starting 'error:' and stdout empty. Assert the same for an unsupported `.bmp` target, for a corrupt PNG, and for a second run without `--force` (stderr must contain '--force'). Assert a run with `--force` returns 0.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Test --quiet",
+      "details": "Assert a successful `main([ref, tgt, '--quiet'])` returns 0 and produces empty stdout, while a failing quiet run still writes to stderr and returns 2.",
+      "pass": false
+    },
+    {
+      "step": 9,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. Visually inspect the real report output once by running the tool on two sample images and confirm the columns align.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-17"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "No Playwright, browser, or screenshot verification applies — this is terminal output. Visual verification means reading the printed report once and confirming alignment.",
+    "Keeping stdout empty on errors is what makes the tool safe to pipe: a caller can consume stdout without ever parsing an error message as data.",
+    "Distinguishing exit 2 (expected/user error) from exit 1 (unexpected bug) gives scripts something useful to branch on.",
+    "If step 3 leads to adding shape fields to MatchResult, update TASK-13's tests in the same commit so the suite stays green — do not leave the model and its tests out of sync."
+  ]
+}

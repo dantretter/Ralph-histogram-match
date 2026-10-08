@@ -1,0 +1,68 @@
+{
+  "id": "TASK-10",
+  "title": "Implement Earth Mover's Distance between two histograms",
+  "category": "functional",
+  "description": "Create `src/lumamatch/emd.py` computing the 1-D Earth Mover's Distance (Wasserstein-1) between two L* histograms that share bin edges. For 1-D distributions this reduces to the integral of the absolute CDF difference, so no optimal-transport solver is needed. The result is reported in L* units, which makes it directly interpretable ('the average pixel must move 0.12 L* units').",
+  "acceptanceCriteria": [
+    "`emd(counts_a, counts_b, edges) -> float` returns the Wasserstein-1 distance in L* units",
+    "Identical histograms return exactly 0.0",
+    "The function is symmetric: `emd(a, b, edges) == emd(b, a, edges)`",
+    "Histograms with different total counts still work (both are normalized to PMFs first), so images of different pixel counts are comparable",
+    "Two single-spike histograms separated by a known L* distance return that distance within 1e-9",
+    "Mismatched lengths between counts and edges raise `ValueError`",
+    "An all-zero histogram raises `ValueError` (delegated to `to_pmf`)",
+    "Unit tests cover all the above including an analytically-known case; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create emd.py and validate shapes",
+      "details": "Import `to_pmf` and `bin_width` from `histogram.py` (do not reimplement). Raise `ValueError` if `counts_a.shape != counts_b.shape` or if `len(edges) != len(counts_a) + 1`, with messages naming the actual lengths.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Compute the CDF difference integral",
+      "details": "`pmf_a = to_pmf(counts_a)`, `pmf_b = to_pmf(counts_b)`. Then `cdf_a = np.cumsum(pmf_a)`, `cdf_b = np.cumsum(pmf_b)`. Return `float(np.abs(cdf_a - cdf_b).sum() * bin_width(edges))`. The multiplication by bin width converts from bin-index units to L* units.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Add an EMD reduction helper",
+      "details": "Write `emd_reduction(before: float, after: float) -> float` returning the fractional reduction `1.0 - after / before`, guarding `before == 0.0` by returning 0.0 (nothing to improve). Clamp the result to [0.0, 1.0] is NOT appropriate — a negative value means the match got worse and must be visible, so return it as-is. The CLI and tests both use this.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Test the analytically-known case",
+      "details": "In `tests/test_emd.py`, with bins=100 over [0,100] (bin width 1.0), build histogram A with all mass in bin 10 and B with all mass in bin 30. The EMD must equal 20.0 within 1e-9, because moving all mass 20 bins of width 1.0 costs 20 L* units. This single test validates both the formula and the unit scaling.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test identity, symmetry, and scale invariance",
+      "details": "Assert `emd(a, a, edges) == 0.0`. Assert `emd(a, b, edges) == pytest.approx(emd(b, a, edges))`. Assert `emd(a, b, edges) == pytest.approx(emd(a * 7, b, edges))` — multiplying one histogram's counts by 7 must not change the distance, proving normalization works.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test error paths and the reduction helper",
+      "details": "Assert ValueError for mismatched count lengths, for edges of the wrong length, and for an all-zero histogram. For `emd_reduction`: assert (10.0, 0.5) gives 0.95, (10.0, 0.0) gives 1.0, (0.0, 0.0) gives 0.0, and (1.0, 2.0) gives -1.0.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-9"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "This EMD is used as a reported metric and as the TASK-21 test gate — it is NOT an objective function that anything iterates on. The LUT in TASK-11 is closed-form optimal, so there is no optimizer to feed.",
+    "Because both inputs are normalized to PMFs, EMD is scale-free and the two images may have completely different pixel counts.",
+    "Do not use `scipy.stats.wasserstein_distance` — scipy is not a dependency and the closed form is two lines.",
+    "Reporting in L* units (not bin indices) is what makes the number meaningful across different `--bins` values."
+  ]
+}

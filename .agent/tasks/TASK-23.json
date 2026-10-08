@@ -1,0 +1,85 @@
+{
+  "id": "TASK-23",
+  "title": "CLI end-to-end test including overwrite guard",
+  "category": "functional",
+  "description": "Verify the tool as a user actually invokes it: as a real subprocess via `python -m lumamatch`. In-process tests of `main()` cannot catch packaging problems (a broken `__main__.py`, an import that only works under pytest's path manipulation, a stray import-time print), so this test runs the genuine command line and inspects exit codes, stdout, stderr, and the files on disk.",
+  "acceptanceCriteria": [
+    "`tests/test_cli_e2e.py` invokes the tool with `subprocess.run([sys.executable, '-m', 'lumamatch', ...])`",
+    "The subprocess environment sets `PYTHONPATH` to the `src` directory so the module resolves without installation",
+    "A successful run exits 0, writes both output files, and prints a report containing 'EMD' and both output filenames",
+    "Nothing is written to stderr on a successful run",
+    "The CSV is parseable: the expected header is present and there are exactly 256 data rows",
+    "Each of the three count columns sums to the correct pixel total",
+    "A second run without `--force` exits 2, prints an error to stderr containing '--force', and leaves the existing output files byte-identical",
+    "A third run with `--force` exits 0 and overwrites the outputs",
+    "`--quiet` produces empty stdout with exit 0",
+    "`--help` exits 0 and its output lists `--bins`, `--force`, and `--quiet`",
+    "`--version` exits 0 and prints a version string",
+    "A nonexistent reference path exits 2 with an error on stderr and empty stdout",
+    "All cases pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Write the subprocess helper",
+      "details": "Write `_run(args, cwd) -> subprocess.CompletedProcess`: build `env = {**os.environ, 'PYTHONPATH': str(SRC_DIR)}` where SRC_DIR is derived from `Path(__file__).parents[1] / 'src'`, then `subprocess.run([sys.executable, '-m', 'lumamatch', *args], capture_output=True, text=True, env=env, cwd=cwd)`. Using `sys.executable` guarantees the venv interpreter is used.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Prepare the image pair fixture",
+      "details": "Add a pytest fixture that writes `ref.png` and `tgt.png` into `tmp_path` using `synthetic_reference` plus a seeded `random_monotonic_curve`, and returns both paths. Reuse it across every case in this module.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Test the successful run",
+      "details": "Run with the two positionals. Assert `returncode == 0`, `proc.stderr == ''`, that stdout contains 'EMD' and both 'tgt_matched.png' and 'tgt_histograms.csv', and that both files exist on disk with non-zero size.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Validate the CSV contents from the e2e artifact",
+      "details": "Parse the written CSV with `read_histogram_csv`. Assert the header matches `CSV_HEADER`, that there are exactly 256 data rows, and that summing columns 4, 5, and 6 gives the reference pixel count, the target pixel count, and the target pixel count respectively (read the expected totals from the CSV metadata block).",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test the overwrite guard end to end",
+      "details": "Record both output files' bytes with `read_bytes()`. Re-run the same command with no flags: assert `returncode == 2`, that stderr contains '--force', that stdout is empty, and that both files' bytes are UNCHANGED. The unchanged-bytes assertion is the real proof the guard is side-effect free.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test --force",
+      "details": "Re-run with `--force`: assert `returncode == 0` and both files still exist. Optionally assert the CSV's mtime advanced or its content is still valid, confirming a genuine rewrite rather than a skip.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test --quiet, --help, and --version",
+      "details": "With `--force --quiet`: assert returncode 0 and `proc.stdout == ''`. With `--help`: assert returncode 0 and stdout contains '--bins', '--force', '--quiet'. With `--version`: assert returncode 0 and stdout is a non-empty string containing a digit.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Test the failure path",
+      "details": "Run with a nonexistent reference (`missing.png`) and the valid target: assert returncode 2, stdout empty, stderr starts with 'error:' and contains 'missing.png'. Also confirm no output files were created for this invocation.",
+      "pass": false
+    },
+    {
+      "step": 9,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/test_cli_e2e.py -q`, then the full suite, then `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-18", "TASK-21"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Subprocess tests are slower than in-process ones, which is why the in-process `main()` tests in TASK-17/18 cover the branch matrix and this module covers only the genuine invocation paths. Do not duplicate the full error matrix here.",
+    "Setting PYTHONPATH rather than installing the package keeps the test hermetic and matches how `pytest.ini`'s `pythonpath = src` already works.",
+    "The unchanged-bytes check after a rejected run is the most valuable assertion in this task — it is the only place the 'zero side effects' guarantee is verified against the real filesystem.",
+    "`sys.executable` inside a pytest run under `.venv/bin/pytest` is the venv's python, so the subprocess sees the same numpy/Pillow. Do not hardcode 'python3'."
+  ]
+}

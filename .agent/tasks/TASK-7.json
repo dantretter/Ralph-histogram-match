@@ -1,0 +1,71 @@
+{
+  "id": "TASK-7",
+  "title": "Implement load_rgb for HEIC, JPG, and PNG",
+  "category": "functional",
+  "description": "Create `src/lumamatch/io_image.py` with a single loader that returns a plain uint8 RGB array from any supported file, normalizing away the format differences (palette, grayscale, alpha, EXIF orientation) so the rest of the pipeline never has to think about them.",
+  "acceptanceCriteria": [
+    "`load_rgb(path) -> np.ndarray` returns uint8 with shape (H, W, 3) for .heic, .heif, .jpg, .jpeg, and .png inputs",
+    "`pillow_heif.register_heif_opener()` is called exactly once at module import",
+    "Grayscale ('L') input is expanded to 3 identical channels",
+    "RGBA/LA input has alpha dropped (not composited) and returns 3 channels",
+    "Palette ('P') input is converted to RGB",
+    "EXIF orientation is applied via `ImageOps.exif_transpose` so a rotated JPEG loads upright",
+    "An unsupported extension raises `ValueError` naming the extension and listing supported ones",
+    "A missing file raises `FileNotFoundError` with the path in the message",
+    "A corrupt/undecodable file raises `ValueError` wrapping the underlying error rather than leaking a PIL exception type",
+    "`SUPPORTED_EXTENSIONS` is a module-level frozenset used by both the loader and the CLI",
+    "Unit tests cover every mode above; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create io_image.py with codec registration",
+      "details": "Import `numpy`, `Path`, `Image`, `ImageOps`, `UnidentifiedImageError` from PIL, and `pillow_heif`. Call `pillow_heif.register_heif_opener()` at module level with a comment explaining it must happen before any `.heic` open. Define `SUPPORTED_EXTENSIONS = frozenset({'.heic', '.heif', '.jpg', '.jpeg', '.png'})`.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Validate the path and extension",
+      "details": "Write `_validate_source(path) -> Path`: coerce to `Path`, expanduser, resolve. If suffix.lower() not in SUPPORTED_EXTENSIONS raise `ValueError(f\"unsupported image format '{suffix}'; supported: ...\")` with the extensions sorted. If not `path.is_file()` raise `FileNotFoundError(str(path))`.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Open and normalize the image",
+      "details": "Open with `Image.open(path)` inside a `with` block. Wrap in try/except catching `UnidentifiedImageError` and `OSError`, re-raising as `ValueError(f'could not decode {path}: {exc}')`. Apply `ImageOps.exif_transpose(img)`. Then if `img.mode != 'RGB'`, call `img.convert('RGB')` — this handles L, LA, P, RGBA, and CMYK in one step and drops alpha without compositing.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Convert to a NumPy array",
+      "details": "Return `np.asarray(img, dtype=np.uint8)`. Assert (with a raised ValueError, not `assert`) that the result has ndim 3 and shape[2] == 3, to catch any surprising mode conversion.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Write unit tests with generated fixtures",
+      "details": "Create `tests/test_io_load.py`. Use `tmp_path` to write test files with Pillow: an RGB PNG, an RGB JPEG, an RGB HEIC, an 'L' PNG, an 'RGBA' PNG, and a 'P' PNG. For each, assert the loaded shape is (H,W,3) and dtype uint8. For the 'L' case assert all three channels are equal. For RGBA assert shape[2] == 3.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test the error paths",
+      "details": "Assert `ValueError` for a `.bmp` path, `FileNotFoundError` for a nonexistent `.png`, and `ValueError` for a `.png` file containing random bytes (write `b'not an image'` to it).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-3"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Dropping alpha rather than compositing onto white is deliberate: compositing would alter L* of transparent regions and silently change the histogram. Document this in the README (TASK-26).",
+    "`ImageOps.exif_transpose` returns a new image and may return None on some Pillow versions if there is no EXIF — guard with `img = ImageOps.exif_transpose(img) or img`.",
+    "`img.convert('RGB')` on a CMYK JPEG works but the result is approximate; CMYK is not a supported input per the PRD, so it is acceptable that it silently converts.",
+    "Do not raise Pillow's MAX_IMAGE_PIXELS limit — TASK-25 depends on it staying at the default."
+  ]
+}

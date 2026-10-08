@@ -1,0 +1,83 @@
+{
+  "id": "TASK-16",
+  "title": "Implement match_luminance pipeline orchestration",
+  "category": "functional",
+  "description": "Create `src/lumamatch/pipeline.py` wiring every component into the end-to-end operation: load both images, convert to Lab, histogram both L* channels, build the monotonic LUT, apply it, recombine with untouched a*/b*, convert back to sRGB, save, and measure the final histogram from the quantized 8-bit result. The critical detail is that the third histogram must reflect the actual output bytes, not a float intermediate, so the CSV is an honest record of what was produced.",
+  "acceptanceCriteria": [
+    "`match_luminance(reference_path, target_path, bins=256, force=False, quality=95) -> MatchResult` performs the full operation",
+    "The output image and the CSV are both written, at the paths returned by `resolve_outputs`",
+    "a*/b* of the target Lab array are bit-identical between the pre- and post-tone-map arrays",
+    "`hist_target_matched` is computed by re-converting the final uint8 RGB result to Lab, not from the float L* before quantization",
+    "`emd_after` is strictly less than `emd_before` for any non-degenerate input pair",
+    "The output image has the same dimensions as the input target image",
+    "The overwrite guard runs BEFORE any image is loaded or written, so a guarded failure has zero side effects and decodes nothing",
+    "`clipped_fraction` from `lab_to_srgb` is carried into the result unchanged",
+    "The returned `MatchResult` passes its own `__post_init__` validation",
+    "`pipeline.py` produces no printed output (the CLI owns all user-facing text)",
+    "An integration test proves EMD reduction on a synthetic pair; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Resolve output paths first",
+      "details": "Call `resolve_outputs(target_path, force)` as the very first action, before loading anything. This makes the overwrite guard side-effect free — a rejected run must not have decoded a 50 MP HEIC first.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Load and convert both images",
+      "details": "`ref_rgb = load_rgb(reference_path)` and `tgt_rgb = load_rgb(target_path)`, then `srgb_to_lab` on each. Record `reference_pixels = ref_rgb.shape[0] * ref_rgb.shape[1]` and the same for the target. The two images may have different dimensions; that is explicitly allowed since matching is purely distributional.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Compute the input histograms and baseline EMD",
+      "details": "`edges = bin_edges(bins)`; `hist_ref, _ = l_histogram(ref_lab[..., 0], bins)`; `hist_tgt, _ = l_histogram(tgt_lab[..., 0], bins)`; `emd_before = emd(hist_tgt, hist_ref, edges)`.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Build and apply the LUT",
+      "details": "`lut = build_lut(hist_tgt, hist_ref, edges)` then `l_new = apply_lut(tgt_lab[..., 0], lut, edges)`. Build the output as `out_lab = tgt_lab.copy(); out_lab[..., 0] = l_new`. Copying rather than mutating in place keeps the original Lab available for the a*/b* identity assertion.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Convert back to sRGB and save the image",
+      "details": "`out_rgb, clipped_fraction = lab_to_srgb(out_lab)` then `save_rgb(image_out, out_rgb, quality=quality)`.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Measure the final histogram from the quantized result",
+      "details": "Compute `hist_matched, _ = l_histogram(srgb_to_lab(out_rgb)[..., 0], bins)`. Use the in-memory `out_rgb` (the exact bytes handed to the encoder), NOT a re-read of the saved file — re-reading a lossy JPEG/HEIC would report codec damage rather than the tone mapping's result and would make PNG and JPEG runs inconsistent. Add a comment recording this reasoning. Then `emd_after = emd(hist_matched, hist_ref, edges)`.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Assemble the result and write the CSV",
+      "details": "Construct the `MatchResult` with all 15 fields, then call `write_histogram_csv(csv_out, result)` and return the result. Because MatchResult validates in `__post_init__`, any wiring error (e.g. a histogram summing to the wrong pixel count) surfaces before the CSV is written.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Write the integration test",
+      "details": "Create `tests/test_pipeline.py`: build two visibly different synthetic images, save both as PNG in `tmp_path`, run `match_luminance`, then assert — both outputs exist; `emd_after < emd_before`; output dimensions equal target dimensions; `result.bins == 256`; and that a*/b* were untouched by comparing the in-pipeline arrays via a small helper or by asserting the reloaded output's a*/b* are within a few units of the target's.",
+      "pass": false
+    },
+    {
+      "step": 9,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. Keep `pipeline.py` under 200 lines by delegating everything to the existing modules — it should read as a linear sequence of calls with no math inline.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-8", "TASK-12", "TASK-13", "TASK-14", "TASK-15"],
+  "estimatedComplexity": "high",
+  "technicalNotes": [
+    "Measuring hist_target_matched from the in-memory uint8 result is the correct middle ground: it captures real 8-bit quantization (which the float L* would hide) without attributing lossy-codec damage to the tone mapping.",
+    "The a*/b* identity claim is exact in Lab space (the array is copied and only channel 0 assigned). It is only approximate after an 8-bit RGB round-trip, so pick the right comparison for whichever arrays the test inspects.",
+    "This is the first task where a real end-to-end failure can appear. If emd_after is not much smaller than emd_before, suspect the bin-centers-vs-edges alignment in apply_lut or the cdf[-1]=1.0 normalization in build_lut.",
+    "No printing, logging, or progress output belongs here — keeping the pipeline quiet is what makes it usable as a library and testable without capsys."
+  ]
+}

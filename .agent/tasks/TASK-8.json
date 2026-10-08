@@ -1,0 +1,69 @@
+{
+  "id": "TASK-8",
+  "title": "Implement save_rgb preserving source format",
+  "category": "functional",
+  "description": "Add a writer to `src/lumamatch/io_image.py` that saves a uint8 RGB array to the format implied by the output path's extension, so a HEIC input produces a HEIC output and a PNG input produces a PNG. Source metadata (EXIF/GPS) is deliberately not carried over.",
+  "acceptanceCriteria": [
+    "`save_rgb(path, rgb, quality=95) -> None` writes a file readable by `load_rgb`",
+    "PNG output is lossless: `load_rgb(saved)` equals the input array exactly",
+    "JPEG output is written with the given quality and `subsampling=0` (4:4:4) to minimize chroma damage",
+    "HEIC output is written with the given quality and re-reads at the correct dimensions",
+    "Unsupported extension raises `ValueError` with the same message style as `load_rgb`",
+    "Non-uint8 or non-(H,W,3) input raises `ValueError`",
+    "No EXIF or ICC data from any source image is written to the output",
+    "The parent directory is verified to exist; a missing directory raises `FileNotFoundError`",
+    "Unit tests cover PNG exactness, JPEG and HEIC readability, and the error paths; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Validate inputs",
+      "details": "Write `_validate_output(path) -> Path` reusing `SUPPORTED_EXTENSIONS`. Raise ValueError on unsupported suffix; raise FileNotFoundError if `path.parent` is not a directory. Validate `rgb.dtype == np.uint8` and `rgb.ndim == 3 and rgb.shape[2] == 3`, else ValueError naming what was received.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Build format-specific save kwargs",
+      "details": "Write `_save_kwargs(suffix, quality) -> dict`: for `.jpg`/`.jpeg` return `{'quality': quality, 'subsampling': 0, 'optimize': True}`; for `.heic`/`.heif` return `{'quality': quality}`; for `.png` return `{'optimize': True}` (no quality — PNG is lossless). Keep this as a small pure function so it is directly testable.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Implement the save",
+      "details": "Build `Image.fromarray(rgb, mode='RGB')` and call `img.save(path, **kwargs)`. Do not pass `exif=` or `icc_profile=` — omitting them is what strips source metadata. Wrap the save in try/except OSError re-raised as `ValueError(f'could not write {path}: {exc}')`.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Test PNG round-trip exactness",
+      "details": "In `tests/test_io_save.py`, generate a seeded random (32,48,3) uint8 array, save as PNG in `tmp_path`, reload with `load_rgb`, assert `np.array_equal`. This is the strongest guarantee available and is what the round-trip matching test in TASK-21 relies on.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test JPEG and HEIC",
+      "details": "Save the same array as `.jpg` and `.heic`. For each: assert the file exists with non-zero size, reload it, assert shape matches and dtype is uint8. Use a loose tolerance (mean absolute difference < 8 for JPEG at quality 95) rather than exact equality, since both are lossy.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test metadata stripping",
+      "details": "Write a JPEG with an EXIF payload via Pillow, load it with `load_rgb`, save it with `save_rgb`, then reopen with `Image.open` and assert `img.getexif()` is empty (or contains no orientation/GPS tags).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test error paths and verify",
+      "details": "Assert ValueError for a `.tiff` output path, FileNotFoundError for a path inside a nonexistent directory, and ValueError for a float64 array and for a (H,W) array. Then run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-7"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Keep `io_image.py` under 300 lines; loader plus writer plus validation should be well under that.",
+    "`subsampling=0` matters more than usual here: default 4:2:0 chroma subsampling would alter a*/b* in a way that shows up as unexpected L* drift after reload, muddying the TASK-22 format test.",
+    "Metadata stripping is a deliberate privacy-safe default, not an oversight — it must be documented in the README.",
+    "pillow-heif accepts `quality`; it ignores unknown kwargs silently, so do not rely on it rejecting a bad option."
+  ]
+}

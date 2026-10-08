@@ -1,0 +1,62 @@
+{
+  "id": "TASK-6",
+  "title": "Verify color conversion against known anchors and round-trip",
+  "category": "functional",
+  "description": "Consolidate and strengthen color-math verification into one authoritative test module that proves the hand-rolled sRGB<->CIELab implementation is correct against externally-known reference values, not just self-consistent. Self-consistency (round-trip) can pass even if both directions share the same wrong constant, so external anchors are required.",
+  "acceptanceCriteria": [
+    "`tests/test_color_reference.py` exists and checks Lab values for at least 6 externally-known sRGB colors within 0.05 of the reference L*a*b*",
+    "Reference anchors include: black, white, mid grey 128, pure red (255,0,0), pure green (0,255,0), pure blue (0,0,255)",
+    "Pure red asserts L*=53.24, a*=80.09, b*=67.20 (tolerance 0.05)",
+    "Pure green asserts L*=87.73, a*=-86.18, b*=83.18 (tolerance 0.05)",
+    "Pure blue asserts L*=32.30, a*=79.19, b*=-107.86 (tolerance 0.05)",
+    "An exhaustive round-trip over a strided sweep of the RGB cube (step 17 in each channel, 4096 colors) is byte-exact",
+    "L* is verified monotonically non-decreasing across the 256 grey levels",
+    "The a*/b* channels are verified unchanged (bit-identical) when only L* is replaced in a Lab array and converted back and forth in Lab space",
+    "All tests pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create the reference anchor table",
+      "details": "In `tests/test_color_reference.py` define a module-level list of `(rgb_tuple, expected_L, expected_a, expected_b)` for the 6 colors above, with a comment citing that these are standard sRGB/D65 CIELab values. Use `pytest.mark.parametrize` over the table.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Assert each anchor",
+      "details": "For each row, build a (1,1,3) uint8 array, call `srgb_to_lab`, and assert each of L*, a*, b* with `pytest.approx(expected, abs=0.05)`. Include the color name in the parametrize id so failures are readable.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Add the strided RGB cube round-trip",
+      "details": "Build `values = np.arange(0, 256, 17, dtype=np.uint8)` (16 values), form the full 16^3 = 4096 combination grid with `np.meshgrid`, reshape to (64,64,3), then assert `lab_to_srgb(srgb_to_lab(cube))[0]` equals the cube exactly with `np.array_equal`.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Assert L* monotonicity over greys",
+      "details": "Build a (1,256,3) array where each pixel is (i,i,i) for i in 0..255. Extract L* and assert `np.all(np.diff(l) > 0)` — strictly increasing, since every grey step is distinguishable in L*.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Assert chroma preservation under L* replacement",
+      "details": "Convert a random image to Lab, copy it, overwrite only channel 0 with arbitrary valid L* values, and assert channels 1 and 2 are bit-identical to the original (`np.array_equal`). This locks in the invariant that the pipeline only ever touches lightness.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. Both clean. Record in LOG.md that the color math is externally validated.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-5"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "If an anchor fails by a large margin, suspect the white point or the RGB->XYZ matrix. If it fails by a small margin (0.1-0.5), suspect a mismatched threshold in the piecewise transfer function.",
+    "The strided cube (step 17) covers 0 and 255 exactly (0, 17, ..., 255) which is why 17 is chosen over 16.",
+    "Keep this module purely assertive — no helpers that later tests depend on. Shared fixtures belong in TASK-19/TASK-20."
+  ]
+}

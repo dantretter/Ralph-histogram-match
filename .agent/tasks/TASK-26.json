@@ -1,0 +1,78 @@
+{
+  "id": "TASK-26",
+  "title": "Write README with usage, CSV reference, and algorithm rationale",
+  "category": "documentation",
+  "description": "Write `src/lumamatch/README.md` documenting how to install and run the tool, what every CSV column means, why CDF-based histogram specification is the correct algorithm, and what the tool's real limitations are. The algorithm rationale matters most: without it, a future reader will see 'histogram matching' and not realize it is the provable EMD optimum, and may 'improve' it into something worse.",
+  "acceptanceCriteria": [
+    "An Install section gives the exact venv + `pip install -r requirements.txt` commands",
+    "A Usage section shows the real invocation `python -m lumamatch REFERENCE TARGET` and documents every flag (`--bins`, `--force`, `--quiet`, `--quality`, `--version`)",
+    "The reference/target roles are stated unambiguously, including which image gets modified",
+    "A worked example shows real command output (copied from an actual run, not invented)",
+    "An Outputs section names both output files and their naming pattern",
+    "A CSV Reference section documents all 8 metadata keys and all 7 columns, with units",
+    "An Algorithm section explains the CDF-matching approach and why it is the EMD optimum over monotonic maps",
+    "A Limitations section covers: gamut clipping, information loss under compressive curves, monotonicity preventing an exact match, a*/b* being unmodified, sRGB/D65 assumption with no ICC handling, metadata stripping, and alpha being dropped rather than composited",
+    "A Security section (from TASK-25) is present",
+    "A Testing section explains how to run the suite and what the round-trip test proves",
+    "Every command in the README is verified to actually run as written",
+    "`ruff check` unaffected; no code changes required"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Write the Install and Usage sections",
+      "details": "Give `python3 -m venv .venv`, `source .venv/bin/activate`, `pip install -r requirements.txt`, then `PYTHONPATH=src python -m lumamatch ref.heic subject.jpg`. Document each flag in a small table with its default. State plainly: REFERENCE is the image whose tonality you want to copy; TARGET is the image that gets modified. TARGET is never overwritten — a new `_matched` file is created.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Capture a real worked example",
+      "details": "Actually run the tool on two generated sample images and paste the genuine stdout into a fenced block, along with the resulting file listing. Do not fabricate the numbers — the point of the example is that a reader can compare their own output against something real.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Document the CSV format",
+      "details": "List the 8 metadata keys (`image1`, `image2`, `image1_pixels`, `image2_pixels`, `bins`, `emd_before`, `emd_after`, `clipped_fraction`) with meanings and units, then a table of the 7 columns. State that counts are raw pixel counts (not normalized) and that the metadata totals let a reader normalize. Include a two-line pandas snippet showing how to load it with `comment='#'` and plot the three histograms.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Write the Algorithm section",
+      "details": "Explain in order: convert to CIELab; histogram L* over a fixed [0,100] domain; compute both CDFs; the tone curve is T = F_ref^-1 . F_src. State explicitly that in one dimension the monotone rearrangement is the optimal transport map for any convex cost including the Wasserstein-1/EMD cost, so this closed form IS the EMD minimizer over monotonic maps — no search or iteration is involved. Note that EMD is computed and reported as a metric and test gate, not as an objective being optimized.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Write the Limitations section",
+      "details": "Cover each honestly: (a) raising or lowering L* while holding a*/b* can push colors out of sRGB — those are clipped and the percentage is reported; (b) where the original distortion compressed a tonal range, information is genuinely gone and cannot be recovered; (c) the monotonicity constraint means an exact histogram match is generally impossible by design; (d) only lightness is matched, so a color cast between the two images will remain; (e) inputs are assumed sRGB/D65 and ICC profiles are ignored; (f) output metadata is stripped deliberately; (g) alpha is dropped, not composited; (h) 8-bit in, 8-bit out, no HDR.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Add the Security and Testing sections",
+      "details": "Fold in the security posture from TASK-25. For Testing, give `pytest` and explain that `tests/test_roundtrip.py` is the primary gate: it applies 6 seeded random monotonic curves to a synthetic reference and requires >=95% EMD reduction and mean |dL*| < 1.0 to recover it. Mention the seeds are fixed so failures are reproducible.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify every documented command",
+      "details": "Run each command block in the README verbatim in a clean shell and confirm it works, including the PYTHONPATH form and the pandas snippet (install pandas ad hoc only to verify, do not add it to requirements.txt). Fix the README wherever reality differs.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Final project verification",
+      "details": "Run the complete suite `.venv/bin/pytest -q` and `.venv/bin/ruff check src tests` plus `.venv/bin/ruff format --check src tests`. Confirm every module is under 300 lines per the project standard. Update `.agent/STRUCTURE.md` to reflect the final file layout.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-25"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "The Algorithm section is the highest-value part of this document. The greedy bin-walk in the original requirements is an approximation of the same map; documenting why the CDF form is exact prevents a future 'optimization' from regressing correctness.",
+    "Pasting real output rather than invented output is not pedantry — invented numbers in a README are how documentation and behavior silently diverge.",
+    "Do not add pandas to requirements.txt just to support the README snippet; it is illustrative and the tool has no runtime need for it.",
+    "This is the final task. When it passes, every task in tasks.json should be complete and the Ralph loop should emit the COMPLETE promise."
+  ]
+}

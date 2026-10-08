@@ -1,0 +1,66 @@
+{
+  "id": "TASK-1",
+  "title": "Verify project prerequisites and access",
+  "category": "setup",
+  "description": "Verify that the local Python toolchain, imaging libraries, and image codec support required by the PRD are present before implementation begins. This project has no database, no MCP servers, no third-party services, no credentials, and no environment variables, so this task records those as not-applicable rather than inventing placeholders.",
+  "acceptanceCriteria": [
+    "Python 3.11 or newer is available and its version is recorded in the log entry",
+    "numpy, PIL (Pillow), and pillow_heif all import successfully",
+    "A test HEIC file can be written and re-read, proving libheif encode and decode support",
+    "pip can reach an index (verified with a download-only check), so pytest and ruff are installable",
+    "It is explicitly recorded that no `.env.local` is required because the PRD lists zero environment variables, and no secret values are written to any file, log, or chat",
+    "It is explicitly recorded that database access, MCP servers, third-party service accounts, and login/test users are not applicable to this project",
+    "The PROMPT.md Node/Playwright gap from the PRD is noted as approved-to-proceed via TASK-2"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Read the prerequisites section of the PRD",
+      "details": "Open `.agent/prd/PRD.md` and read section 6 `Prerequisites and Access`, including the three recorded prerequisite gaps and their decisions. Confirm the list of what must be verified.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Verify the Python interpreter",
+      "details": "Run `python3 -VV`. Confirm version >= 3.11. Record the exact version string in the log entry for this task.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Verify imaging libraries import",
+      "details": "Run `python3 -c \"import numpy, PIL, pillow_heif; print(numpy.__version__, PIL.__version__, pillow_heif.__version__)\"`. All three must import without error.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Verify HEIC encode and decode",
+      "details": "In a temp dir, run a script that calls `pillow_heif.register_heif_opener()`, creates a small `Image.new('RGB',(32,32))`, saves it as `.heic`, then reopens it and prints the size. Both operations must succeed. Delete the temp file afterward.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Verify pip index reachability",
+      "details": "Run `pip3 download pytest -d <tmp> -q` (download only, do not install into the system environment). Success means pytest and ruff can be installed in TASK-3. Remove the download dir afterward. If this fails due to network policy, output the BLOCKED promise tag rather than attempting workarounds.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Record the not-applicable prerequisites",
+      "details": "In the `.agent/logs/LOG.md` entry for this task, state explicitly: no database, no MCP servers, no third-party services, no login/test users, and no environment variables are required by this project, therefore no `.env.local` file is created. Do not create an empty or placeholder `.env.local`. Never write real secret values anywhere.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Confirm reference documentation is reachable",
+      "details": "Confirm the implementer has access to the doc links in the PRD: Pillow, pillow-heif, NumPy, and a CIELab/sRGB math reference (brucelindbloom.com). These are needed for the hand-rolled color math in TASK-4 and TASK-5.",
+      "pass": false
+    }
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "This task gates all implementation work. Do not begin TASK-3 until every check above passes or a gap is recorded with the user-approved proceed decision from the PRD.",
+    "This project handles no secrets at all. If a future change introduces one, add it to `.env.local` as a placeholder only and never commit a real value.",
+    "The environment has already been observed with Python 3.13.12, numpy 2.4.4, Pillow 12.2.0, pillow-heif 1.3.0, and working HEIC write. Re-verify rather than assuming, since the venv from TASK-3 may differ."
+  ]
+}

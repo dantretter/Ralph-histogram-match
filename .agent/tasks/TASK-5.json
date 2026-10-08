@@ -1,0 +1,74 @@
+{
+  "id": "TASK-5",
+  "title": "Implement lab_to_srgb conversion with gamut clipping report",
+  "category": "functional",
+  "description": "Add the exact inverse of TASK-4 to `src/lumamatch/color.py`, converting CIELab float64 back to 8-bit sRGB. Because changing L* while holding a*/b* fixed can push colors outside the sRGB gamut, this function must also report what fraction of pixels required clipping so the CLI can surface it rather than hiding the loss.",
+  "acceptanceCriteria": [
+    "`lab_to_srgb(lab: np.ndarray) -> tuple[np.ndarray, float]` returns (uint8 (H,W,3), clipped_fraction)",
+    "Non-float or wrong-shaped input raises `ValueError`",
+    "`clipped_fraction` is the fraction of *pixels* (not channels) where any channel fell outside [0,1] before clipping, in [0.0, 1.0]",
+    "An in-gamut image returns clipped_fraction == 0.0",
+    "A deliberately out-of-gamut Lab value (e.g. L*=95 with a*=80, b*=-80) returns clipped_fraction > 0",
+    "Quantization uses round-half-away-from-zero, not NumPy's default banker's rounding",
+    "Round-tripping `srgb_to_lab` then `lab_to_srgb` over all 256 grey levels and 4096 random colors returns byte-identical uint8 values",
+    "`ruff check` clean; unit tests pass"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Implement the Lab f() inverse",
+      "details": "Write `_lab_f_inv(t)`: `np.where(t > DELTA, t ** 3, 3 * DELTA**2 * (t - 4/29))`. Note the threshold here is DELTA (not DELTA_CUBED) because the input is in f-space.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Implement Lab to XYZ",
+      "details": "From L, a, b: `fy = (L + 16) / 116`, `fx = fy + a / 500`, `fz = fy - b / 200`. Apply `_lab_f_inv` to each, multiply componentwise by `D65_WHITE`, stack to (H,W,3).",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Implement XYZ to linear RGB",
+      "details": "Compute `XYZ_TO_SRGB = np.linalg.inv(SRGB_TO_XYZ)` once at module level (derive it rather than hardcoding, so the two matrices can never drift out of sync). Apply as `xyz @ XYZ_TO_SRGB.T`.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Implement the forward sRGB transfer function",
+      "details": "Write `_linear_to_srgb(c)`: `np.where(c <= 0.0031308, c * 12.92, 1.055 * np.abs(c) ** (1/2.4) - 0.055)`. Use `np.abs` inside the power to avoid NaN on slightly negative out-of-gamut values; the sign is irrelevant because those values get clipped to 0 next.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Detect and count gamut clipping",
+      "details": "After the transfer function and before clipping, build `out_of_range = (srgb < 0.0) | (srgb > 1.0)`, then `clipped_pixels = np.any(out_of_range, axis=-1)`. Set `clipped_fraction = float(clipped_pixels.mean())` (guard against zero-size arrays). Then `np.clip(srgb, 0.0, 1.0)`.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Quantize to uint8",
+      "details": "Use `np.floor(srgb * 255.0 + 0.5).astype(np.uint8)` for round-half-away-from-zero. Do NOT use `np.round`, which rounds halves to even and will break the byte-exact round-trip assertion. Values are already clipped so no overflow is possible.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Write unit tests",
+      "details": "Create `tests/test_color_inverse.py`: (a) all 256 greys round-trip byte-exact; (b) 4096 seeded random RGB triplets round-trip byte-exact; (c) in-gamut image gives clipped_fraction 0.0; (d) an array of L*=95, a*=80, b*=-80 gives clipped_fraction == 1.0; (e) ValueError on uint8 input and on shape (H,W,2).",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` (all prior tests must still pass) and `.venv/bin/ruff check src/lumamatch/color.py`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-4"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "The byte-exact round-trip is the single most valuable test in this task — if it passes, both directions of the color math are almost certainly correct.",
+    "Deriving XYZ_TO_SRGB with np.linalg.inv rather than hardcoding it guarantees the inverse is exact to machine precision and eliminates a class of transcription typos.",
+    "clipped_fraction counts pixels, not channels, because that is the number a user can reason about ('0.02% of pixels were clipped').",
+    "The PRD specifies clip-only; do NOT implement chroma desaturation toward the gamut boundary. That was explicitly rejected as out of scope."
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "id": "TASK-19",
+  "title": "Build random monotonic tone curve test fixture",
+  "category": "functional",
+  "description": "Create `tests/curves.py` generating seeded random strictly-monotonic L* tone curves. These curves are how the test suite manufactures 'image 2' from a reference image: apply a random curve to a known-good image's L*, and the pipeline's job is to undo it. The generator must produce genuinely varied curves (gamma-like, S-curves, range-compressing) so the round-trip test is not accidentally easy.",
+  "acceptanceCriteria": [
+    "`random_monotonic_curve(rng, bins) -> np.ndarray` returns float64 of length `bins`",
+    "The returned curve is STRICTLY increasing: `np.all(np.diff(curve) > 0)`",
+    "All values lie within [0, 100]",
+    "The same `np.random.default_rng(seed)` seed always produces an identical curve (determinism)",
+    "Different seeds produce visibly different curves (the mean absolute difference between two seeds' curves exceeds 1.0 L*)",
+    "Curves vary in output range: some span nearly the full [0,100] and some compress into a sub-range, controlled randomly",
+    "`apply_curve_to_image(rgb, curve, edges) -> np.ndarray` produces a new uint8 RGB image with the curve applied to L* only",
+    "`apply_curve_to_image` leaves a*/b* untouched in Lab space",
+    "A self-test asserts monotonicity and determinism over 20 seeds; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create tests/curves.py",
+      "details": "Import numpy and the project's `bin_centers`/`L_MIN`/`L_MAX` from `lumamatch.histogram`, plus `srgb_to_lab`/`lab_to_srgb` from `lumamatch.color`. This is a test helper module, not part of the package, so it lives under `tests/`.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Generate positive increments and integrate",
+      "details": "`increments = rng.uniform(0.05, 1.0, size=bins)`. Then `curve = np.cumsum(increments)`. Because every increment is strictly positive, the cumulative sum is strictly increasing by construction — this is why this generator cannot accidentally produce a flat or decreasing region.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Rescale to a random sub-range of [0,100]",
+      "details": "Draw `low = rng.uniform(0.0, 25.0)` and `high = rng.uniform(75.0, 100.0)`, then affine-map the curve so its first value is `low` and its last is `high`: `curve = low + (curve - curve[0]) * (high - low) / (curve[-1] - curve[0])`. This gives the range variety required by the acceptance criteria — some curves crush the range, some use nearly all of it.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Guarantee and assert the invariants",
+      "details": "Clip to `[L_MIN, L_MAX]` (a no-op given the construction, but defensive), then raise `ValueError` if `not np.all(np.diff(curve) > 0)` or if any value is non-finite. Failing loudly inside the fixture is important: a broken fixture would otherwise look like a broken pipeline.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Implement apply_curve_to_image",
+      "details": "Convert `rgb` to Lab, interpolate its L* through the curve with `np.interp(l, bin_centers(edges), curve)` (the same interpolation scheme the product code uses), assign into a copy of the Lab array's channel 0, convert back with `lab_to_srgb`, and return only the uint8 array (discard the clipped fraction, or return it as a second value for diagnostics).",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write the fixture self-test",
+      "details": "Create `tests/test_curves.py`: (a) for 20 seeds assert strict monotonicity and the [0,100] range; (b) assert two calls with the same seed give `np.array_equal` results; (c) assert seeds 0 and 1 differ by mean absolute difference > 1.0; (d) assert `apply_curve_to_image` returns uint8 of the same shape; (e) assert the applied image's Lab a*/b* are within a small tolerance of the source's (allowing for the 8-bit round-trip).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-12"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Cumulative-sum-of-positive-increments is chosen over random gamma curves because it explores a much wider function space while still guaranteeing monotonicity structurally rather than by rejection sampling.",
+    "The minimum increment of 0.05 keeps curves away from near-flat regions that would destroy information irrecoverably. Deliberately-destructive curves were considered and rejected for the standard suite; if added later they need their own looser tolerance.",
+    "Always pass an explicit `np.random.default_rng(seed)` from the test — never use the global numpy random state, or failures become unreproducible.",
+    "This module must use the same `np.interp`-against-bin-centers convention as `apply_lut`, otherwise a half-bin mismatch between the distortion and the correction will show up as a phantom error floor in TASK-21."
+  ]
+}

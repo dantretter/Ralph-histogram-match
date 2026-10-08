@@ -1,0 +1,68 @@
+{
+  "id": "TASK-13",
+  "title": "Define MatchResult data model",
+  "category": "data-model",
+  "description": "Create `src/lumamatch/result.py` with the frozen `MatchResult` dataclass that carries everything produced by one match operation. This is the single hand-off object between the pipeline, the CSV writer, and the CLI reporter, so defining it before the pipeline keeps those three from inventing incompatible ad-hoc tuples or dicts.",
+  "acceptanceCriteria": [
+    "`MatchResult` is a frozen dataclass with exactly the fields listed in PRD section 7",
+    "Fields: reference_path, target_path, bins, edges, hist_reference, hist_target, hist_target_matched, lut, emd_before, emd_after, clipped_fraction, reference_pixels, target_pixels, image_out, csv_out",
+    "Path-typed fields are `pathlib.Path`; histogram/edges/lut fields are `np.ndarray`; emd/clipped fields are `float`; bins/pixel counts are `int`",
+    "A `__post_init__` validates that all three histograms have length `bins`, that `edges` has length `bins + 1`, and that `lut` has length `bins`, raising `ValueError` otherwise",
+    "`__post_init__` validates `0.0 <= clipped_fraction <= 1.0`",
+    "`__post_init__` validates that each histogram's sum equals the corresponding pixel count (reference_pixels for hist_reference; target_pixels for both hist_target and hist_target_matched)",
+    "An `emd_reduction` property returns the fractional EMD improvement using the helper from `emd.py`",
+    "The dataclass is importable without importing the pipeline (no circular import)",
+    "Unit tests construct a valid instance and assert each validation error path; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create result.py with the dataclass",
+      "details": "Use `from dataclasses import dataclass` and `@dataclass(frozen=True)`. Declare all 15 fields with type annotations in the PRD's order. Add a class docstring stating this is the complete output of one match operation and that arrays must not be mutated by consumers.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Implement length validation in __post_init__",
+      "details": "Check `len(self.hist_reference) == self.bins`, same for hist_target and hist_target_matched and lut, and `len(self.edges) == self.bins + 1`. Raise `ValueError` with a message naming which field is wrong and both the expected and actual length.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Implement value-range and count validation",
+      "details": "Raise `ValueError` if not `0.0 <= clipped_fraction <= 1.0`. Raise `ValueError` if `int(self.hist_reference.sum()) != self.reference_pixels`, and likewise that `hist_target` and `hist_target_matched` each sum to `target_pixels`. These catch pipeline wiring mistakes (e.g. computing the matched histogram from the wrong array) immediately rather than in the CSV.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Add the emd_reduction property",
+      "details": "Add `@property def emd_reduction(self) -> float: return emd_reduction(self.emd_before, self.emd_after)` importing the helper from `emd.py`. Name the import to avoid shadowing the property (e.g. `from .emd import emd_reduction as _emd_reduction`).",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Make arrays defensively read-only",
+      "details": "In `__post_init__`, set `arr.flags.writeable = False` on edges, all three histograms, and the lut, using `object.__setattr__` only if you need to replace the array. This enforces the docstring's no-mutation contract at runtime and prevents the CSV writer or CLI from accidentally scaling counts in place.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write unit tests",
+      "details": "Create `tests/test_result.py` with a `_make_valid()` helper building a consistent instance. Then assert: valid construction succeeds; `emd_reduction` returns 0.95 for (10.0, 0.5); ValueError when a histogram has the wrong length; ValueError when edges has length `bins`; ValueError for clipped_fraction of 1.5 and of -0.1; ValueError when hist_target.sum() disagrees with target_pixels; and that attempting to write to `result.lut[0]` raises ValueError (read-only).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q`, `.venv/bin/ruff check src tests`, and confirm `python -c \"from lumamatch.result import MatchResult\"` works without pulling in pipeline or io modules.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-10"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "The histogram-sum validation is the highest-value check here: the most likely pipeline bug is computing the third histogram from the pre-quantization float L* instead of the final saved uint8 image, and a mismatched sum will often expose related wiring errors.",
+    "Keep result.py dependent only on `emd.py` (for the reduction helper) so it never participates in an import cycle with pipeline.py.",
+    "Frozen plus read-only arrays makes MatchResult safely shareable; the CSV writer and CLI both read it and neither should ever modify it."
+  ]
+}

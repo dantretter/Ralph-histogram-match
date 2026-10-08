@@ -1,0 +1,77 @@
+{
+  "id": "TASK-15",
+  "title": "Implement histogram CSV writer",
+  "category": "functional",
+  "description": "Create `src/lumamatch/csv_writer.py` writing the three histograms to a single CSV beside the target image. The file is the tool's auditable artifact: a metadata comment block records what was run and what the EMD figures were, then one row per bin gives the bin's L* range and the three raw pixel counts, ready to plot directly in Excel, Numbers, or pandas.",
+  "acceptanceCriteria": [
+    "`write_histogram_csv(path, result: MatchResult) -> None` writes the file",
+    "The file begins with exactly these comment lines, each prefixed `# `: image1, image2, image1_pixels, image2_pixels, bins, emd_before, emd_after, clipped_fraction",
+    "The header row is exactly `bin_index,l_star_lower,l_star_center,l_star_upper,image1_count,image2_count,image2_matched_count`",
+    "There are exactly `result.bins` data rows following the header",
+    "Counts are written as integers with no decimal point or scientific notation",
+    "L* bounds and centers are written with 6 decimal places",
+    "emd_before/emd_after are written with 6 decimal places; clipped_fraction with 8",
+    "The `image1_count` column sums to `result.reference_pixels`; `image2_count` and `image2_matched_count` each sum to `result.target_pixels`",
+    "The file is opened with `newline=''` so no blank lines appear between rows on any platform",
+    "`csv.reader` can parse the file when comment lines are filtered out",
+    "Unit tests verify the header, row count, column sums, and round-trip parse; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create csv_writer.py with the header constant",
+      "details": "Define `CSV_HEADER = ['bin_index', 'l_star_lower', 'l_star_center', 'l_star_upper', 'image1_count', 'image2_count', 'image2_matched_count']` as a module constant so the tests and README reference the same list rather than a duplicated string.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Write the metadata comment block",
+      "details": "Open with `open(path, 'w', newline='', encoding='utf-8')`. Write eight lines directly to the file handle (not via csv.writer, to avoid quoting): `# image1=<reference_path>`, `# image2=<target_path>`, `# image1_pixels=<int>`, `# image2_pixels=<int>`, `# bins=<int>`, `# emd_before=<:.6f>`, `# emd_after=<:.6f>`, `# clipped_fraction=<:.8f>`. Use the full resolved paths.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Write the header and rows",
+      "details": "Create `csv.writer(fh)` and `writerow(CSV_HEADER)`. Then compute `lowers = result.edges[:-1]`, `uppers = result.edges[1:]`, `centers = bin_centers(result.edges)` and loop `for i in range(result.bins)` writing `[i, f'{lowers[i]:.6f}', f'{centers[i]:.6f}', f'{uppers[i]:.6f}', int(hist_reference[i]), int(hist_target[i]), int(hist_target_matched[i])]`. Explicit `int()` prevents numpy int64 from rendering as `np.int64(5)` on some numpy versions.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Add a reader helper for tests and users",
+      "details": "Write `read_histogram_csv(path) -> tuple[dict[str, str], list[list[str]]]` returning the parsed metadata dict (from the `# key=value` lines) and the data rows. This keeps the test from reimplementing comment filtering and gives users a supported way to load the file back. Skip lines starting with '#' when feeding csv.reader.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test the structure",
+      "details": "In `tests/test_csv_writer.py`, build a valid MatchResult (reuse the `_make_valid` helper pattern from TASK-13's tests, extracted to a shared fixture if convenient). Write it to `tmp_path`, then assert: the first 8 lines all start with '# '; the 9th line equals ','.join(CSV_HEADER); the total data row count equals bins; no blank lines exist in the file.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test the column sums and metadata",
+      "details": "Parse with `read_histogram_csv`. Assert `sum(int(r[4]) for r in rows) == result.reference_pixels`, and the same for columns 5 and 6 against `target_pixels`. Assert `meta['bins'] == str(result.bins)` and that `float(meta['emd_after']) <= float(meta['emd_before'])`.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test numeric formatting",
+      "details": "Assert no count field contains '.' or 'e'. Assert the l_star fields parse as floats and that `float(rows[0][1]) == 0.0` and `float(rows[-1][3]) == 100.0`, confirming the bin range spans the full domain.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-13"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Raw counts (not normalized) were chosen deliberately: they are lossless and the user can normalize downstream, whereas normalizing here would discard the pixel totals. The metadata block carries the totals so normalization is always possible.",
+    "The `# key=value` comment format is machine-readable on purpose — it survives being opened in a spreadsheet (where it appears as text rows) while remaining trivially parseable.",
+    "`newline=''` is required by the csv module on Windows to avoid doubled line endings; include it even though the target platform is macOS.",
+    "Writing the comment lines with plain `fh.write` rather than csv.writer avoids the writer quoting the '#' line or splitting on the '=' — do not route them through the writer."
+  ]
+}

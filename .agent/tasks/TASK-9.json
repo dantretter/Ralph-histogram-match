@@ -1,0 +1,71 @@
+{
+  "id": "TASK-9",
+  "title": "Implement fixed-domain L* histogram",
+  "category": "functional",
+  "description": "Create `src/lumamatch/histogram.py` computing an L* histogram over a fixed [0, 100] domain with uniform bins. The domain must be fixed rather than data-derived so that any two histograms produced by this tool are always directly comparable and share identical bin edges — this is a prerequisite for both the EMD calculation and the CDF-based LUT.",
+  "acceptanceCriteria": [
+    "`l_histogram(l_star, bins=256) -> tuple[np.ndarray, np.ndarray]` returns (int64 counts of length `bins`, float64 edges of length `bins+1`)",
+    "Bin edges are exactly `np.linspace(0.0, 100.0, bins + 1)` regardless of the data",
+    "`counts.sum()` equals `l_star.size` for any input within [0, 100]",
+    "A value of exactly 100.0 is counted in the last bin, not dropped",
+    "A value of exactly 0.0 is counted in the first bin",
+    "Values outside [0, 100] are clipped into range rather than discarded, and the count total is still preserved",
+    "`bins < 2` raises `ValueError`",
+    "An empty array raises `ValueError` with a message about needing at least one pixel",
+    "`bin_centers(edges)` and `bin_width(edges)` helpers exist and are used elsewhere instead of recomputing",
+    "`DEFAULT_BINS = 256` and `L_MIN = 0.0`, `L_MAX = 100.0` are module constants",
+    "Unit tests cover all the above; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create histogram.py with constants and edge helpers",
+      "details": "Define `DEFAULT_BINS = 256`, `L_MIN = 0.0`, `L_MAX = 100.0`. Write `bin_edges(bins) -> np.ndarray` returning `np.linspace(L_MIN, L_MAX, bins + 1)`, `bin_centers(edges)` returning `0.5 * (edges[:-1] + edges[1:])`, and `bin_width(edges)` returning `float(edges[1] - edges[0])`.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Validate inputs",
+      "details": "In `l_histogram`, raise `ValueError` if `bins < 2` (message: 'bins must be >= 2'). Raise `ValueError` if `l_star.size == 0`. Flatten with `np.ravel` and cast to float64 if needed.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Clip and bin",
+      "details": "Clip the flattened values with `np.clip(values, L_MIN, L_MAX)` so out-of-domain floats are folded into the end bins rather than lost. Then call `np.histogram(clipped, bins=bins, range=(L_MIN, L_MAX))`. NumPy's `histogram` already includes the right edge in the final bin, which satisfies the 'exactly 100 goes in the last bin' requirement.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Normalize the return types",
+      "details": "Cast counts to `np.int64` and edges to `np.float64` explicitly. Return `(counts, edges)`. Prefer returning our own `bin_edges(bins)` result over NumPy's to guarantee the edges are bit-identical to what every other module computes.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Add a normalized-PMF helper",
+      "details": "Write `to_pmf(counts) -> np.ndarray`: raise `ValueError` if `counts.sum() == 0`, else return `counts.astype(np.float64) / counts.sum()`. This is shared by the EMD and LUT modules, so it belongs here rather than being duplicated.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Write unit tests",
+      "details": "Create `tests/test_histogram.py`: (a) counts sum equals size for a random array in [0,100]; (b) `np.array([100.0])` puts 1 in the last bin; (c) `np.array([0.0])` puts 1 in the first bin; (d) `np.array([-5.0, 105.0])` yields counts summing to 2 with 1 in each end bin; (e) edges equal `np.linspace(0,100,bins+1)` exactly via `np.array_equal`; (f) ValueError for bins=1 and for an empty array; (g) `bin_centers` length is `bins` and `bin_width` is 100/bins; (h) `to_pmf` sums to 1.0 and raises on an all-zero input.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-3"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "The fixed [0,100] domain is the key design decision here. A data-derived range (np.histogram's default) would give the two images different edges and make the CDF match meaningless.",
+    "Clipping rather than dropping out-of-range values keeps `counts.sum() == pixel_count` an invariant that the CSV writer and tests can rely on.",
+    "int64 counts avoid any overflow concern even for very large images.",
+    "This module has no dependency on color.py — keep it that way so it stays trivially testable."
+  ]
+}

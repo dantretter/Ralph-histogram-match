@@ -1,0 +1,81 @@
+{
+  "id": "TASK-25",
+  "title": "Harden untrusted image input handling",
+  "category": "security",
+  "description": "The only meaningful attack surface in this tool is decoding image files that may be attacker-supplied: HEIC/JPEG/PNG decoders are a historically rich source of CVEs and decompression-bomb denial of service. Verify and lock in the defensive posture — keep Pillow's decompression-bomb guard active, fail cleanly on malformed input, and confirm no path-traversal or metadata-leak surface exists.",
+  "acceptanceCriteria": [
+    "`Image.MAX_IMAGE_PIXELS` is never raised or set to None anywhere in the codebase (verified by grep)",
+    "A `DecompressionBombError`/`DecompressionBombWarning` from Pillow surfaces as a clean `ValueError` from `load_rgb`, not a crash or a silent oversized allocation",
+    "A truncated/corrupt file of each supported format raises `ValueError` with the path in the message, not a raw PIL exception",
+    "`ImageFile.LOAD_TRUNCATED_IMAGES` is left at its default False so truncated files fail rather than decode partially",
+    "No output is ever written outside the target image's parent directory, verified by a test using a target path containing `..`",
+    "No EXIF, GPS, or ICC data from either input appears in the output file (regression test on top of TASK-8's check)",
+    "The tool performs zero network I/O (verified by a test that fails if `socket.socket` is instantiated during a run)",
+    "A short `Security` section is added to the README covering these properties",
+    "All tests pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Audit for bomb-guard tampering",
+      "details": "Grep the codebase for `MAX_IMAGE_PIXELS` and `LOAD_TRUNCATED_IMAGES`. Both must be absent. Add a comment in `io_image.py` stating explicitly that Pillow's decompression-bomb limit is intentionally left at its default and must not be raised, so a future contributor does not 'fix' a bomb warning by disabling the guard.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Convert bomb warnings into clean failures",
+      "details": "In `load_rgb`, wrap the open/decode in `warnings.catch_warnings()` with `simplefilter('error', Image.DecompressionBombWarning)` so the warning becomes an exception, and catch both `Image.DecompressionBombWarning` and `Image.DecompressionBombError` in the existing except clause, re-raising as `ValueError(f'refusing to decode {path}: image too large')`.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Test the decompression-bomb path",
+      "details": "In `tests/test_security.py`, monkeypatch `Image.MAX_IMAGE_PIXELS` to a very small value (e.g. 100) for the duration of one test, then call `load_rgb` on a normal 128x192 PNG. Assert `ValueError` is raised and its message mentions the path. Restore the original value via the monkeypatch fixture. This tests the handling without needing to create an actual gigapixel file.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Test malformed input for each format",
+      "details": "For each of `.png`, `.jpg`, `.heic`: write a file containing the correct magic-byte prefix followed by random bytes, plus a file that is a valid image truncated to its first 40 bytes. Assert `load_rgb` raises `ValueError` (not `OSError`, `UnidentifiedImageError`, or a segfault) and that the message contains the path.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test output containment",
+      "details": "Create a target at `tmp_path / 'sub' / 'photo.png'` and call `resolve_outputs` with a path expressed as `tmp_path / 'sub' / '..' / 'sub' / 'photo.png'`. Assert both returned paths, after `.resolve()`, are inside `tmp_path / 'sub'`. This confirms outputs always land beside the target and cannot be redirected by a crafted path.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test metadata non-propagation",
+      "details": "Build a JPEG carrying EXIF with a GPS tag and a fabricated ICC profile using Pillow. Run the full pipeline with it as the target. Reopen the output and assert `getexif()` contains no GPS tags and `img.info.get('icc_profile')` is None. This is a privacy property, so it deserves its own regression test independent of TASK-8.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Test the no-network property",
+      "details": "Use monkeypatch to replace `socket.socket` with a function that raises `AssertionError('network access attempted')`, then run a full `match_luminance`. The run must complete successfully, proving the tool is fully offline and cannot exfiltrate image data.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Document the security posture",
+      "details": "Add a `Security` section to the README (or a placeholder to be folded into TASK-26) listing: no network I/O, no credentials or environment variables, decompression-bomb guard active, source metadata stripped from output, outputs confined to the target's directory, and a note to keep Pillow and pillow-heif updated because decoder CVEs are the real risk.",
+      "pass": false
+    },
+    {
+      "step": 9,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/test_security.py -q`, then the full suite, then `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-24"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Monkeypatching MAX_IMAGE_PIXELS down is far better than generating a real decompression bomb — same code path, no multi-GB test fixture.",
+    "The most likely real-world vulnerability here is a libheif CVE, which no amount of application code can mitigate. Keeping dependencies current is the actual control, which is why it goes in the README rather than the code.",
+    "Normalizing every decoder failure to ValueError matters for the CLI contract: TASK-18 maps ValueError to a clean exit 2, so a leaked PIL exception type would produce an ugly traceback instead.",
+    "The no-network test also documents intent: if someone later adds telemetry or a remote model call, this test fails immediately."
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "id": "TASK-24",
+  "title": "Edge case handling and tests",
+  "category": "functional",
+  "description": "Define and verify explicit, non-crashing behavior for the degenerate inputs a real user will eventually hit: single-color images, mismatched dimensions, a 1x1 image, grayscale and RGBA sources, and the minimum bin count. Each case must have a documented intended outcome — 'it happens not to crash' is not sufficient.",
+  "acceptanceCriteria": [
+    "A single-color (degenerate) target produces a valid output image and CSV without NaN, inf, or a crash",
+    "A single-color reference maps the entire target to approximately that single L* value, and the LUT remains non-decreasing",
+    "Reference and target with different dimensions succeed, and the CSV's two pixel totals differ accordingly",
+    "A 1x1 target image succeeds and produces a 1x1 output",
+    "A grayscale ('L' mode) input succeeds and the output has 3 channels",
+    "An RGBA PNG input succeeds with alpha dropped and produces a 3-channel output",
+    "`--bins 2` succeeds end to end and the CSV contains exactly 2 data rows",
+    "`--bins 4096` succeeds (more bins than a small image has pixels) without a crash or NaN",
+    "In every case `clipped_fraction` is a finite value in [0, 1] and `emd_after` is finite and non-negative",
+    "No case emits a warning (run pytest with `-W error::RuntimeWarning` to catch divide-by-zero in the CDF math)",
+    "All cases pass; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Test a degenerate target",
+      "details": "In `tests/test_edge_cases.py`, use `flat_image(128)` as the target and `synthetic_reference` as the reference. Run `match_luminance`. Assert no exception, that `np.isfinite(result.emd_after)`, that the LUT is non-decreasing and finite, and that the output image exists. Note in a comment that a flat source cannot be spread into a broad histogram under a monotonic map — all pixels share one input value so they must share one output value. That is correct behavior, so do NOT assert EMD improvement here.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Test a degenerate reference",
+      "details": "Use `flat_image(200)` as the reference and a synthetic image as the target. Assert the output's L* is nearly constant (standard deviation < 1.0) and approximately equal to the reference's L*, and that the LUT is non-decreasing. This is the case where the tool legitimately collapses the whole tonal range.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Test mismatched dimensions",
+      "details": "Build a 64x64 reference and a 128x96 target. Assert the run succeeds, the output is 128x96, `result.reference_pixels == 4096`, `result.target_pixels == 12288`, and the CSV's `image1_count` column sums to 4096 while `image2_count` sums to 12288. This proves the EMD normalization genuinely makes different-sized images comparable.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Test a 1x1 image",
+      "details": "Use `flat_image(50, 1, 1)` as the target against a normal reference. Assert the run succeeds, the output is 1x1x3, and the CSV's `image2_count` column sums to exactly 1. This is the smallest possible input and shakes out any code that assumes more than one pixel.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Test grayscale and RGBA inputs",
+      "details": "Write a grayscale PNG (Pillow mode 'L') and an RGBA PNG directly with Pillow (not via `save_rgb`, which only handles RGB). Run the pipeline with each as the target. Assert success and that the loaded output has `shape[2] == 3` in both cases.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Test the bin-count extremes",
+      "details": "Run with `bins=2`: assert success and that the CSV has exactly 2 data rows. Run with `bins=4096` on a small (32x32 = 1024 pixel) image: assert success, finite EMD, a non-decreasing LUT, and no NaN — most bins will be empty, which is exactly the CDF-plateau condition that must not produce a divide-by-zero.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Turn warnings into errors for this module",
+      "details": "Add `@pytest.mark.filterwarnings('error::RuntimeWarning')` to the module or the individual tests so a silent `invalid value encountered in divide` inside the CDF math fails the test instead of producing a quiet NaN.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Fix any defects the cases expose",
+      "details": "If any case raises, produces NaN, or emits a warning, fix the underlying module (most likely `to_pmf` on a zero-sum histogram, or `build_lut` interpolating against a constant CDF) rather than adjusting the test. Add the specific guard and note it in the module's comments.",
+      "pass": false
+    },
+    {
+      "step": 9,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/test_edge_cases.py -q`, then the full suite, then `.venv/bin/ruff check src tests`.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-22"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "The flat-target case is the one most likely to be mis-asserted. Under a monotonic constraint a single input value MUST map to a single output value, so the histogram cannot be spread and EMD will not improve. Asserting improvement there would be asserting something impossible.",
+    "`bins=4096` on a 1024-pixel image is the strongest test of the CDF-plateau path: most reference bins are empty, so `np.interp` interpolates across long flat stretches. If NaN appears anywhere, it will appear here.",
+    "Grayscale and RGBA fixtures must be written with Pillow directly, since `save_rgb` deliberately accepts only 3-channel uint8 input.",
+    "Treating RuntimeWarning as an error is what turns 'quietly returns NaN' into a visible failure — keep that marker in place."
+  ]
+}

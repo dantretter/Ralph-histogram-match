@@ -1,0 +1,77 @@
+{
+  "id": "TASK-11",
+  "title": "Implement monotonic tone LUT via CDF histogram specification",
+  "category": "functional",
+  "description": "Create `src/lumamatch/tonemap.py` with `build_lut`, the core of the tool. Given the target image's L* histogram and the reference image's L* histogram, produce the monotonic tone curve that minimizes EMD between the mapped target and the reference. In one dimension the optimal transport map under any convex cost is the monotone rearrangement T = F_ref^-1 . F_src, so classic CDF-based histogram specification IS the EMD minimizer over monotonic maps — the answer is closed-form, exact, and requires no search.",
+  "acceptanceCriteria": [
+    "`build_lut(src_counts, ref_counts, edges) -> np.ndarray` returns float64 of length `len(src_counts)`",
+    "The returned LUT is non-decreasing: `np.all(np.diff(lut) >= 0)` holds for every input, including adversarial ones",
+    "All LUT values lie within [0, 100]",
+    "Identity case: when `src_counts == ref_counts`, the LUT is within 0.5 L* of the bin centers (an approximate identity map)",
+    "Applying the LUT to the source reduces EMD to near zero for any monotonic distortion of the same underlying distribution",
+    "A degenerate source (all mass in one bin) produces a valid non-decreasing LUT without NaN or inf",
+    "A degenerate reference (all mass in one bin) maps everything to approximately that bin's L* value",
+    "Mismatched histogram lengths raise `ValueError`",
+    "No NaN or inf appears in the output for any of the tested inputs",
+    "Unit tests cover all the above; `ruff check` clean"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create tonemap.py and validate inputs",
+      "details": "Import `to_pmf`, `bin_centers` from `histogram.py`. Validate `src_counts.shape == ref_counts.shape` and `len(edges) == len(src_counts) + 1`, raising `ValueError` naming the actual lengths.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Compute the two CDFs",
+      "details": "`src_cdf = np.cumsum(to_pmf(src_counts))` and `ref_cdf = np.cumsum(to_pmf(ref_counts))`. Both are non-decreasing and end at 1.0. Force the last element of each to exactly 1.0 to remove floating-point cumsum drift, which otherwise makes the top of the interpolation range slightly unreachable.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Invert the reference CDF by interpolation",
+      "details": "The target L* for source bin i is the L* where ref_cdf reaches src_cdf[i]. Because ref_cdf is monotone non-decreasing, use `np.interp(src_cdf, ref_cdf, centers)` where `centers = bin_centers(edges)` — np.interp requires its xp argument to be non-decreasing, which ref_cdf is by construction. This yields one output L* per source bin.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Handle CDF plateaus deliberately",
+      "details": "Where ref_cdf is flat (empty reference bins), np.interp returns the first matching x, which biases mapped values toward the low end of a plateau. Document this in a block comment: it is the correct monotone choice (the left-continuous inverse) and keeps the map non-decreasing. Do not attempt to average across plateaus — that can break monotonicity.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Enforce monotonicity and range explicitly",
+      "details": "Apply `lut = np.maximum.accumulate(lut)` then `lut = np.clip(lut, L_MIN, L_MAX)`. Both are defensive: the interpolation should already be monotone, but this makes the guarantee unconditional and cheap. Add a comment saying this is the hard guarantee that pixel ordering is preserved, which is a stated product requirement.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Add a monotonicity assertion helper",
+      "details": "Write `assert_monotonic(lut) -> None` raising `ValueError` if `np.any(np.diff(lut) < 0)` or if `not np.all(np.isfinite(lut))`. Call it at the end of `build_lut` so a violation can never escape into the pipeline, and reuse it from the tests.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Write unit tests",
+      "details": "Create `tests/test_tonemap_lut.py`: (a) identity case — same histogram in and out, LUT within 0.5 of bin centers; (b) monotonicity over 50 seeded random histogram pairs; (c) finiteness over the same 50 pairs; (d) degenerate source (single spike) yields a valid non-decreasing LUT; (e) degenerate reference (single spike at bin 100) maps all bins to approximately that L*; (f) all values in [0,100]; (g) ValueError on mismatched lengths.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Verify",
+      "details": "Run `.venv/bin/pytest tests/ -q` and `.venv/bin/ruff check src tests`. Record in LOG.md that the LUT is closed-form optimal, not iterative.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-9", "TASK-10"],
+  "estimatedComplexity": "high",
+  "technicalNotes": [
+    "The original requirements sketched a greedy dark-to-light bin walk. That is a discrete approximation of exactly this CDF inverse; the interpolated CDF form is the exact version and is both simpler and faster. Do not implement the greedy variant.",
+    "np.interp requires xp non-decreasing. ref_cdf satisfies this. If you ever swap the argument order you will get silent garbage rather than an error — the test suite's monotonicity and identity checks are the guard.",
+    "Forcing cdf[-1] = 1.0 matters: cumsum of a PMF can land at 0.9999999999999998, which makes the brightest source bin interpolate short of the reference maximum and leaves a small systematic EMD floor.",
+    "An exact histogram match is generally impossible under a monotonic constraint — that is inherent, not a bug. The test tolerance in TASK-21 is relative (>=95% EMD reduction) for this reason.",
+    "Keep this module focused on the LUT; application to pixels is TASK-12."
+  ]
+}
