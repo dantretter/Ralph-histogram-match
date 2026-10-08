@@ -48,6 +48,4 @@ must not be modified.
 | `test_images.py` | created | Self-test for `images.py`: determinism, shape/dtype, >=200 non-empty L* histogram bins, L* range, chroma > 40, `flat_image` single value, `gradient_image` unique-level count. |
 | `test_roundtrip.py` | created | Primary correctness gate: 6-seed parametrized round-trip test distorting `synthetic_reference` with `random_monotonic_curve`, running `match_luminance`, and asserting >=95% EMD reduction, mean `|ΔL*| < 1.0`, LUT monotonicity, and output dimensions. |
 | `test_formats.py` | created | Format coverage: 5 reference/target extension pairs (PNG/JPG/HEIC same-format plus HEIC->PNG, PNG->JPG mixed) from a fixed seed; asserts output existence/size, Pillow `format` matches extension (HEIC -> `'HEIF'`), output dimensions, EMD reduction, per-format L* tolerance (1.0 PNG / 3.0 lossy), and CSV row count/metadata. |
-
-Further test modules (CLI end-to-end) will be added alongside their
-corresponding implementation tasks.
+| `test_cli_e2e.py` | created | Genuine subprocess invocation of `python -m lumamatch` (not in-process `main()`): success report/output files, CSV row count and column-sum validation, overwrite guard with byte-identical-files proof, `--force` re-run, `--quiet`/`--help`/`--version`, and the nonexistent-reference failure path. |

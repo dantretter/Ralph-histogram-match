@@ -3,12 +3,27 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 22 / 26
-**Current Task:** TASK-22 Complete
+**Tasks Completed:** 23 / 26
+**Current Task:** TASK-23 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-23: CLI end-to-end test including overwrite guard
+
+Added `tests/test_cli_e2e.py`, which invokes the real `python -m lumamatch` as a subprocess
+(`sys.executable`, `PYTHONPATH` set to `src`) rather than calling `main()` in-process, so packaging
+problems (`__main__.py`, import-path issues) would actually be caught. A shared `image_pair` fixture
+builds `ref.png`/`tgt.png` from `synthetic_reference` plus a seeded `random_monotonic_curve`. One
+test drives the full guard flow: a successful run (exit 0, empty stderr, both output files present
+and non-zero size, 256 CSV rows with reference/target/matched count columns summing to the metadata
+pixel totals), then a repeat run with no flags (exit 2, `--force` mentioned on stderr, empty stdout,
+and both output files proven byte-identical via `read_bytes()` before/after — the real proof the
+guard has zero side effects), then a `--force` re-run (exit 0, outputs rewritten). Separate tests
+cover `--quiet` (empty stdout), `--help` (lists `--bins`/`--force`/`--quiet`), `--version` (prints a
+digit), and a nonexistent reference path (exit 2, stderr starts with `error:` and names the missing
+file, no output files created). Full suite: 253 passed; `ruff check` clean.
 
 ## 2026-10-08 — TASK-22: Format coverage test for HEIC, JPG, and PNG
 
