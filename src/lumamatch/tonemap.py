@@ -42,12 +42,7 @@ def build_lut(src_counts: np.ndarray, ref_counts: np.ndarray, edges: np.ndarray)
     ref_cdf[-1] = 1.0
 
     centers = bin_centers(edges)
-    # Where ref_cdf is flat (empty reference bins), np.interp returns the
-    # value at the first matching x, i.e. the left-continuous inverse. That
-    # biases mapped values toward the low end of the plateau, which is the
-    # correct monotone choice — averaging across a plateau could break
-    # monotonicity instead.
-    lut = np.interp(src_cdf, ref_cdf, centers)
+    lut = _invert_cdf(src_cdf, ref_cdf, centers)
 
     # Defensive: the interpolation above is already monotone by
     # construction, but this makes the non-decreasing guarantee
@@ -57,6 +52,30 @@ def build_lut(src_counts: np.ndarray, ref_counts: np.ndarray, edges: np.ndarray)
 
     assert_monotonic(lut)
     return lut
+
+
+def _invert_cdf(query: np.ndarray, ref_cdf: np.ndarray, centers: np.ndarray) -> np.ndarray:
+    """Generalized inverse of a step CDF, linearly smoothed between bins.
+
+    The textbook generalized inverse is F^-1(p) = inf{t : F(t) >= p}, i.e.
+    the FIRST bin center reaching each cdf level. `np.interp` can't express
+    this directly: when `ref_cdf` is flat across empty reference bins, its
+    x-values repeat, and `np.interp` resolves an exact match to the LAST
+    matching point, not the first. Using `searchsorted(..., side="left")`
+    locates that first occurrence explicitly, then interpolates between it
+    and the prior distinct value for a smooth (non-stair-stepped) LUT.
+    """
+    n = len(ref_cdf)
+    idx = np.clip(np.searchsorted(ref_cdf, query, side="left"), 0, n - 1)
+    prev_idx = np.maximum(idx - 1, 0)
+
+    span = ref_cdf[idx] - ref_cdf[prev_idx]
+    # span is 0 exactly when idx == prev_idx (query at or below ref_cdf[0]),
+    # where frac is irrelevant since both ends of the interpolation
+    # collapse to the same center anyway.
+    frac = np.divide(query - ref_cdf[prev_idx], span, out=np.zeros_like(query), where=span > 0)
+
+    return centers[prev_idx] + frac * (centers[idx] - centers[prev_idx])
 
 
 def apply_lut(l_star: np.ndarray, lut: np.ndarray, edges: np.ndarray) -> np.ndarray:

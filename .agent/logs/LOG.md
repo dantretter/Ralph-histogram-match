@@ -3,12 +3,32 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 23 / 26
-**Current Task:** TASK-23 Complete
+**Tasks Completed:** 24 / 26
+**Current Task:** TASK-24 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-24: Edge case handling and tests
+
+Added `tests/test_edge_cases.py` covering a flat target, a flat reference, mismatched
+reference/target dimensions, a 1x1 target, grayscale and RGBA PNG sources (written directly with
+Pillow, bypassing `save_rgb`), and the `--bins` extremes (2 and 4096 on a 1024-pixel image), all run
+with `-W error::RuntimeWarning` so a silent CDF divide-by-zero would fail loudly. The flat-reference
+case uncovered a real bug in `tonemap.build_lut`: when the reference histogram has empty bins
+trailing its only populated bin (any flat/spiked reference not located in the very last bin), the
+old `np.interp(src_cdf, ref_cdf, centers)` call resolved an exact `src_cdf == 1.0` match to the
+*last* index sharing that cdf value instead of the first, sending every source pixel at the top of
+its own distribution all the way to the top of the LUT instead of collapsing to the reference's
+actual L*. A first attempt (deduplicating `ref_cdf` with `np.unique(..., return_index=True)`) fixed
+that case but broke `test_degenerate_reference_single_spike_maps_everything_near_it`, because global
+dedup also discards the correct *interior* interpolation bracket (last-of-lower-run,
+first-of-higher-run) that `np.interp` happens to find correctly on its own. Replaced the interpolation
+with an explicit `_invert_cdf` helper using `np.searchsorted(ref_cdf, query, side="left")` to locate
+the first occurrence of each cdf level directly (the textbook generalized inverse
+`F^-1(p) = inf{t : F(t) >= p}`), then linearly interpolates between that point and the prior distinct
+value. Full suite (261 tests, up from 253) and `ruff check` clean.
 
 ## 2026-10-08 — TASK-23: CLI end-to-end test including overwrite guard
 

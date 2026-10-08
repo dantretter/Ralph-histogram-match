@@ -9,7 +9,7 @@
 | `io_image.py` | created | `load_rgb` and `save_rgb` for HEIC, JPG, PNG; `save_rgb` strips EXIF/ICC metadata. |
 | `histogram.py` | created | Fixed-domain 256-bin L* histogram: `l_histogram`, `bin_edges`, `bin_centers`, `bin_width`, `to_pmf`. |
 | `emd.py` | created | 1-D Earth Mover's Distance between histograms: `emd`, `emd_reduction`. |
-| `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `apply_lut`, `assert_monotonic`. |
+| `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `apply_lut`, `assert_monotonic`, `_invert_cdf` (generalized CDF inverse, immune to reference-histogram plateaus). |
 | `result.py` | created | `MatchResult` frozen dataclass: hand-off object between pipeline, CSV writer, and CLI reporter; validates shapes/sums (including `reference_shape`/`target_shape` against pixel counts) and freezes arrays read-only. |
 | `paths.py` | created | `resolve_outputs`: derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` beside the target image; all-or-nothing overwrite guard. |
 | `pipeline.py` | created | `match_luminance` end-to-end orchestration: load, convert, histogram, LUT, apply, save, re-measure, write CSV. |
@@ -49,3 +49,4 @@ must not be modified.
 | `test_roundtrip.py` | created | Primary correctness gate: 6-seed parametrized round-trip test distorting `synthetic_reference` with `random_monotonic_curve`, running `match_luminance`, and asserting >=95% EMD reduction, mean `|ΔL*| < 1.0`, LUT monotonicity, and output dimensions. |
 | `test_formats.py` | created | Format coverage: 5 reference/target extension pairs (PNG/JPG/HEIC same-format plus HEIC->PNG, PNG->JPG mixed) from a fixed seed; asserts output existence/size, Pillow `format` matches extension (HEIC -> `'HEIF'`), output dimensions, EMD reduction, per-format L* tolerance (1.0 PNG / 3.0 lossy), and CSV row count/metadata. |
 | `test_cli_e2e.py` | created | Genuine subprocess invocation of `python -m lumamatch` (not in-process `main()`): success report/output files, CSV row count and column-sum validation, overwrite guard with byte-identical-files proof, `--force` re-run, `--quiet`/`--help`/`--version`, and the nonexistent-reference failure path. |
+| `test_edge_cases.py` | created | Degenerate-input coverage with `-W error::RuntimeWarning`: flat target/reference, mismatched dimensions, 1x1 image, grayscale/RGBA sources, `--bins` 2 and 4096. Exposed and drove the fix for a real `build_lut` tie-breaking bug (see `tonemap.py`'s `_invert_cdf`). |

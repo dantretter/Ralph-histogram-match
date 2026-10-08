@@ -165,7 +165,7 @@
     "title": "Edge case handling and tests",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-24.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-25",
