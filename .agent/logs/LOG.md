@@ -3,12 +3,25 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 12 / 26
-**Current Task:** TASK-12 Complete
+**Tasks Completed:** 13 / 26
+**Current Task:** TASK-13 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-13: Define MatchResult data model
+
+Added `src/lumamatch/result.py` with a frozen `MatchResult` dataclass holding the
+full output of one match operation (paths, bins, edges, three histograms, lut,
+EMD before/after, clipped fraction, pixel counts, output paths), per PRD section 7.
+`__post_init__` validates histogram/edges/lut lengths against `bins`, that
+`clipped_fraction` is in `[0, 1]`, and that each histogram's sum matches its
+corresponding pixel count, then marks all array fields read-only. Added an
+`emd_reduction` property delegating to `emd.emd_reduction`. Depends only on
+`emd.py`, so it stays free of any cycle with `pipeline.py`. Added
+`tests/test_result.py` covering valid construction, the property, every
+validation error path, and read-only enforcement.
 
 ## 2026-10-08 — TASK-12: Implement interpolated LUT application to L* channel
 
