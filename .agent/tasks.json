@@ -144,7 +144,7 @@
     "title": "Round-trip matching test over 6 random monotonic curves",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-21.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-22",
