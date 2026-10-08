@@ -3,12 +3,40 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 10 / 26
-**Current Task:** TASK-10 Complete
+**Tasks Completed:** 11 / 26
+**Current Task:** TASK-11 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-11: Implement monotonic tone LUT via CDF histogram specification
+
+Added `src/lumamatch/tonemap.py`: `build_lut(src_counts, ref_counts, edges) -> np.ndarray`, the
+core of the tool. The LUT is **closed-form optimal, not iterative** — in one dimension the
+optimal transport map under any convex cost is the monotone rearrangement
+`T = F_ref^-1 . F_src`, so CDF-based histogram specification is exactly the EMD minimizer over
+monotonic maps. No greedy bin walk, no search, no optimizer.
+- Validates shapes/edges length up front, same pattern as `emd.py`.
+- Forces `cdf[-1] = 1.0` on both CDFs before inverting — cumsum of a PMF can land at
+  `0.9999999999999998`, which would otherwise leave the brightest source bin short of the
+  reference maximum and create a small systematic EMD floor.
+- Inversion is one line: `np.interp(src_cdf, ref_cdf, centers)`. Where `ref_cdf` is flat (empty
+  reference bins), `np.interp` returns the value at the first matching x — the left-continuous
+  inverse, which is the correct monotone choice; averaging across a plateau could break
+  monotonicity instead.
+- `np.maximum.accumulate` + `np.clip` after the interpolation are defensive, not corrective: the
+  interpolation is already monotone by construction, but this makes the non-decreasing guarantee
+  unconditional and cheap, since preserved pixel ordering is a hard product requirement.
+- `assert_monotonic(lut)` raises `ValueError` on any decrease or non-finite value; called at the
+  end of `build_lut` so a violation can never escape into the pipeline, and reused directly from
+  tests.
+- `tests/test_tonemap_lut.py`: identity case (LUT within 0.5 L* of bin centers), monotonicity and
+  finiteness across 50 seeded random histogram pairs, full-range bound checks, degenerate source
+  (single spike) and degenerate reference (single spike) cases, mismatched-length `ValueError`
+  paths, and direct `assert_monotonic` checks.
+- Verified: `.venv/bin/pytest -q` → 173 passed; `.venv/bin/ruff check src tests` → clean;
+  `ruff format` → no changes needed.
 
 ## 2026-10-08 — TASK-10: Implement Earth Mover's Distance between two histograms
 
