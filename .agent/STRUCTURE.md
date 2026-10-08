@@ -28,6 +28,7 @@ must not be modified.
 | `test_import.py` | created | Smoke test: `lumamatch` imports and exposes `__version__`. |
 | `test_color_forward.py` | created | `srgb_to_lab`/`lab_l_channel` anchors, range, dtype/shape, and `ValueError` cases. |
 | `test_color_inverse.py` | created | `lab_to_srgb` byte-exact round-trip (greys + random), gamut clipping report, `ValueError` cases. |
+| `test_color_reference.py` | created | External Lab anchor checks (black/white/grey/red/green/blue), strided RGB-cube round-trip, grey L* monotonicity, a*/b* invariance under L* replacement. |
 
 Further test modules (histogram/EMD, tone mapping round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.

@@ -3,12 +3,29 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 5 / 26
-**Current Task:** TASK-5 Complete
+**Tasks Completed:** 6 / 26
+**Current Task:** TASK-6 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-6: Verify color conversion against known anchors and round-trip
+
+Added `tests/test_color_reference.py` as the authoritative external-validation module for the
+color math, separate from the self-consistency round-trip tests in TASK-4/TASK-5.
+- 6 parametrized anchors (black, white, mid grey 128, pure red/green/blue) assert `srgb_to_lab`
+  against standard sRGB/D65 CIELab reference values, each within `abs=0.05` — proving correctness
+  against external truth, not just that both conversion directions agree with each other.
+- Strided RGB cube round-trip: `np.meshgrid` over `arange(0, 256, 17)` (16 values per channel,
+  4096 combinations, includes both 0 and 255 exactly) reshaped to (64, 64, 3), asserted byte-exact
+  through `lab_to_srgb(srgb_to_lab(cube))`.
+- Grey-level L* monotonicity: all 256 (i,i,i) greys strictly increasing in L* (`np.diff(l) > 0`).
+- a*/b* invariance: overwriting only the L* channel of a random image's Lab array with arbitrary
+  values leaves a*/b* bit-identical, locking in the "pipeline only touches lightness" invariant.
+- Verified: `.venv/bin/pytest -q` → 24 passed; `.venv/bin/ruff check src tests` → clean;
+  `ruff format` → no changes needed. Color math is now externally validated, not just
+  self-consistent.
 
 ## 2026-10-08 — TASK-5: Implement lab_to_srgb conversion with gamut clipping report
 
