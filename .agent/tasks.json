@@ -116,7 +116,7 @@
     "title": "Implement CLI argument parsing and entry point",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-17.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-18",

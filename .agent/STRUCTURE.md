@@ -14,8 +14,8 @@
 | `paths.py` | created | `resolve_outputs`: derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` beside the target image; all-or-nothing overwrite guard. |
 | `pipeline.py` | created | `match_luminance` end-to-end orchestration: load, convert, histogram, LUT, apply, save, re-measure, write CSV. |
 | `csv_writer.py` | created | `write_histogram_csv`/`read_histogram_csv`: commented 3-histogram CSV artifact. |
-| `cli.py` | planned | Argument parsing, entry point, reporting/error handling. |
-| `__main__.py` | planned | `python -m lumamatch` entry point. |
+| `cli.py` | created | `build_parser`, `main(argv) -> int`: argument parsing, validation, exit-code contract. Reporting/error formatting is TASK-18. |
+| `__main__.py` | created | `python -m lumamatch` entry point; three-line `sys.exit(main())` shim. |
 
 Note: `src/` also contains an unrelated Node/Playwright scaffold (`package.json`,
 `package-lock.json`, `playwright.config.ts`, `vitest.config.ts`) that predates this project and
@@ -40,6 +40,7 @@ must not be modified.
 | `test_paths.py` | created | `resolve_outputs` naming, suffix-case preservation, all-or-nothing overwrite guard (image/csv/both), force bypass, missing-parent and read-only-parent errors. |
 | `test_csv_writer.py` | created | `write_histogram_csv` comment-block/header structure, column sums against `MatchResult` totals, metadata round-trip, numeric formatting (no decimals/scientific notation in counts, full L* domain span). |
 | `test_pipeline.py` | created | `match_luminance` integration: EMD reduction on a synthetic pair, both outputs written, output dimensions match target, a*/b* approximately preserved, overwrite guard (zero side effects) and `force=True` bypass. |
+| `test_cli_args.py` | created | `build_parser` defaults, `--bins`/`--quality` validation (`SystemExit` code 2), missing positionals, `--force`/`--quiet` flags; `main()` real run returns 0 and writes both outputs. |
 
 Further test modules (random monotonic curve round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.

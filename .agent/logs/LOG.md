@@ -3,12 +3,25 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 16 / 26
-**Current Task:** TASK-16 Complete
+**Tasks Completed:** 17 / 26
+**Current Task:** TASK-17 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-17: Implement CLI argument parsing and entry point
+
+Added `src/lumamatch/cli.py` with `build_parser() -> argparse.ArgumentParser` (positionals
+`reference`/`target`, options `--bins` default 256 validated >= 2, `--quality` default 95
+validated 1-100, `--force`, `--quiet`, `--version` reading `lumamatch.__version__`) and
+`main(argv=None) -> int`, which parses args, calls `match_luminance`, and returns 0 on success or
+2 on any exception — never calling `sys.exit` itself, so it stays directly unit-testable. Added
+`src/lumamatch/__main__.py` as a three-line `sys.exit(main())` shim. Added
+`tests/test_cli_args.py` covering parser defaults, `--bins`/`--quality` validation (SystemExit
+code 2), missing positionals, `--force`/`--quiet` flags, and a real `main()` run writing both
+outputs. Manually verified `python -m lumamatch --help`/`--version` both exit 0. Detailed error
+formatting and the human-readable report are deferred to TASK-18.
 
 ## 2026-10-08 — TASK-16: Implement match_luminance pipeline orchestration
 
