@@ -3,12 +3,26 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 19 / 26
-**Current Task:** TASK-19 Complete
+**Tasks Completed:** 20 / 26
+**Current Task:** TASK-20 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-20: Build synthetic reference image test fixture
+
+Added `tests/images.py`: `synthetic_reference(rng, height=128, width=192)` builds a diagonal
+grey gradient (`(x_ramp + y_ramp) / 2` broadcast to 3 channels) for broad L* coverage, stamps 8
+saturated color patches (6 fixed primaries/secondaries plus 2 random non-grey RGB-cube corners
+from `rng`) centered within a 2x4 grid of cells — centered rather than at each cell's origin so
+the image's actual corners stay pure gradient and keep the L* extremes intact — then adds
+`rng.normal(0, 4)` noise and clips before casting to uint8. Also added `flat_image(value, height,
+width)` and `gradient_image(height=64, width=1024)` (rounded `linspace` ramp, tiled across rows)
+for the degenerate and anti-banding test fixtures. Added `tests/test_images.py` asserting
+determinism, shape/dtype, >=200 non-empty bins in the 256-bin L* histogram, L* range reaching
+<=5 and >=95, max chroma > 40, `flat_image`'s single unique value, and `gradient_image`'s >200
+unique grey levels. `pytest` (237 passed) and `ruff check`/`format` clean.
 
 ## 2026-10-08 — TASK-19: Build random monotonic tone curve test fixture
 

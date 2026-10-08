@@ -137,7 +137,7 @@
     "title": "Build synthetic reference image test fixture",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-20.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-21",

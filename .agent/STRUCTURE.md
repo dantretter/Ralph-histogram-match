@@ -44,6 +44,8 @@ must not be modified.
 | `test_cli_report.py` | created | `format_report`/`main()` success report content and EMD formatting; error path for every exception class (`FileNotFoundError`, unsupported extension, corrupt file, `FileExistsError` mentioning `--force`, unexpected exception); `--quiet` suppresses success output but not errors. |
 | `curves.py` | created | Test helper (not a test module itself): `random_monotonic_curve`, `apply_curve_to_image` — manufactures "image 2" by distorting a reference image's L* with a seeded, strictly-monotonic random curve. |
 | `test_curves.py` | created | Self-test for `curves.py`: monotonicity/range over 20 seeds, determinism, seed-to-seed variation, `apply_curve_to_image` shape/dtype and a*/b* preservation. |
+| `images.py` | created | Test helper (not a test module itself): `synthetic_reference` (diagonal gradient + saturated color patches + mild noise, broad L* coverage), `flat_image`, `gradient_image`. |
+| `test_images.py` | created | Self-test for `images.py`: determinism, shape/dtype, >=200 non-empty L* histogram bins, L* range, chroma > 40, `flat_image` single value, `gradient_image` unique-level count. |
 
-Further test modules (synthetic reference image fixture, I/O format coverage, CLI
-end-to-end) will be added alongside their corresponding implementation tasks.
+Further test modules (I/O format coverage, CLI end-to-end) will be added
+alongside their corresponding implementation tasks.
