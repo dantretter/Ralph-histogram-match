@@ -3,12 +3,20 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 3 / 26
-**Current Task:** TASK-3 Complete
+**Tasks Completed:** 4 / 26
+**Current Task:** TASK-4 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-4: Implement srgb_to_lab conversion
+
+Created `src/lumamatch/color.py`: vectorized, hand-rolled 8-bit sRGB → CIELab (D65), float64 throughout.
+- `SRGB_TO_XYZ` is the standard Lindbloom/IEC 61966-2-1 matrix. `D65_WHITE` is derived as the matrix's own row-sum (`SRGB_TO_XYZ @ [1,1,1]`) rather than re-entered as an independently-rounded literal — the published 7-decimal matrix's Y row sums to 1.0000001, not exactly 1.0, so dividing by a separately-rounded white point left ~1.7e-5 noise in a\*/b\* at pure white, failing the 1e-6 tolerance. Deriving the white point from the matrix is mathematically the same value and fixes the round-trip.
+- `_srgb_to_linear`, `_linear_rgb_to_xyz`, `_lab_f` (via `np.cbrt` to avoid NaN on float noise), composed in `srgb_to_lab`; `rgb` validated for uint8 dtype and (H,W,3) shape, raising `ValueError` otherwise. `lab_l_channel` returns a contiguous L* copy.
+- `tests/test_color_forward.py`: black/white/mid-grey anchors, output dtype/shape, L* range over a random 64x64 image, both `ValueError` cases, and `lab_l_channel` contiguity.
+- Verified: `.venv/bin/pytest -q` → 9 passed; `.venv/bin/ruff check src tests` and `ruff format` → clean.
 
 ## 2026-10-08 — TASK-3: Scaffold lumamatch Python package, requirements, and ruff config
 
