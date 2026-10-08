@@ -3,12 +3,34 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 9 / 26
-**Current Task:** TASK-9 Complete
+**Tasks Completed:** 10 / 26
+**Current Task:** TASK-10 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-10: Implement Earth Mover's Distance between two histograms
+
+Added `src/lumamatch/emd.py`: `emd(counts_a, counts_b, edges) -> float`, the 1-D Wasserstein-1
+distance in L* units, reusing `to_pmf`/`bin_width` from `histogram.py` rather than reimplementing
+normalization.
+- Validates `counts_a.shape == counts_b.shape` and `len(edges) == len(counts_a) + 1` before any
+  computation, raising `ValueError` naming the actual lengths.
+- Core formula is two lines: PMF-normalize both histograms, `np.cumsum` each, then
+  `abs(cdf_a - cdf_b).sum() * bin_width(edges)` — the bin-width multiplication is what converts
+  the result from bin-index units to L* units, which is what makes the number comparable across
+  different `--bins` values. No optimal-transport solver and no scipy dependency.
+- `emd_reduction(before, after) -> float` returns `1.0 - after / before`, guarding `before == 0.0`
+  by returning `0.0`; deliberately *not* clamped to `[0, 1]` so a regression (match got worse)
+  surfaces as a visible negative number instead of being hidden at 0.
+- `tests/test_emd.py`: analytically-known case (two single-bin spikes 20 bins apart in a 100-bin
+  histogram over `[0, 100]` → EMD exactly 20.0, validating both the formula and unit scaling),
+  identity (`emd(a, a, edges) == 0.0`), symmetry, scale invariance (`counts * 7` unchanged),
+  mismatched-length and all-zero `ValueError` paths, and all four `emd_reduction` cases from the
+  spec (typical, perfect match, nothing-to-improve, regression).
+- Verified: `.venv/bin/pytest -q` → 65 passed; `.venv/bin/ruff check src tests` → clean;
+  `ruff format` → no changes needed.
 
 ## 2026-10-08 — TASK-9: Implement fixed-domain L* histogram
 
