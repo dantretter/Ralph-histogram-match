@@ -109,7 +109,7 @@
     "title": "Implement match_luminance pipeline orchestration",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-16.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-17",

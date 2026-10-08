@@ -3,12 +3,31 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 15 / 26
-**Current Task:** TASK-15 Complete
+**Tasks Completed:** 16 / 26
+**Current Task:** TASK-16 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-16: Implement match_luminance pipeline orchestration
+
+Added `src/lumamatch/pipeline.py` with `match_luminance(reference_path, target_path, bins=256,
+force=False, quality=95) -> MatchResult`, wiring every existing module into the end-to-end
+operation. `resolve_outputs` runs first, before any image is decoded, so a guarded failure has
+zero side effects. Loads both images, converts to Lab, histograms both L* channels, computes
+`emd_before`, builds the monotonic LUT via `build_lut`, applies it with `apply_lut`, copies the
+target Lab array and reassigns only channel 0 (keeping a*/b* untouched), converts back to sRGB
+with `lab_to_srgb`, and saves. `hist_target_matched` is measured by re-running `srgb_to_lab` on
+the in-memory uint8 `out_rgb` (the exact bytes handed to the encoder) rather than re-reading the
+saved file or using the float L* before quantization — this captures real 8-bit rounding without
+attributing lossy-codec damage to the tone mapping. Assembles the `MatchResult` (which
+self-validates in `__post_init__`) and writes the CSV before returning; no printing anywhere, per
+the PRD's CLI-owns-reporting rule. Added `tests/test_pipeline.py` with a synthetic
+gradient-plus-color-tint image pair: asserts `emd_after < emd_before`, both outputs exist, output
+dimensions match the target, a*/b* stay close after an 8-bit round-trip, the overwrite guard
+raises `FileExistsError` with zero mutation of the existing outputs, and `force=True` bypasses it.
+`pytest` (207 passed) and `ruff check`/`format` clean.
 
 ## 2026-10-08 — TASK-15: Implement histogram CSV writer
 
