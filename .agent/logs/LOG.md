@@ -3,12 +3,22 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 11 / 26
-**Current Task:** TASK-11 Complete
+**Tasks Completed:** 12 / 26
+**Current Task:** TASK-12 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-12: Implement interpolated LUT application to L* channel
+
+Added `apply_lut(l_star, lut, edges) -> np.ndarray` to `src/lumamatch/tonemap.py`. Interpolates
+per-pixel L* values against bin centers (not edges, to avoid a half-bin shift) via `np.interp`,
+clamping outside the center range to `lut[0]`/`lut[-1]` and clipping to `[L_MIN, L_MAX]`.
+Validates `len(lut) + 1 == len(edges)` and calls `assert_monotonic(lut)` before applying. New
+`tests/test_tonemap_apply.py` covers shape/dtype preservation, range, monotonicity, equal-input
+equality, end clamping, an anti-banding gradient check (more unique outputs than bins), identity
+LUT tolerance, and the mismatched-length error path.
 
 ## 2026-10-08 — TASK-11: Implement monotonic tone LUT via CDF histogram specification
 

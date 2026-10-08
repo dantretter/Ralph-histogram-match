@@ -59,6 +59,32 @@ def build_lut(src_counts: np.ndarray, ref_counts: np.ndarray, edges: np.ndarray)
     return lut
 
 
+def apply_lut(l_star: np.ndarray, lut: np.ndarray, edges: np.ndarray) -> np.ndarray:
+    """Map `l_star` through `lut` with linear interpolation over bin centers.
+
+    Args:
+        l_star: L* values of any shape.
+        lut: per-bin output L* values, non-decreasing, length `bins`.
+        edges: shared bin edges, length `len(lut) + 1`.
+
+    Returns:
+        float64 array the same shape as `l_star`, clipped to [L_MIN, L_MAX].
+        Values at or below the first bin center clamp to `lut[0]`; values at
+        or above the last bin center clamp to `lut[-1]`.
+    """
+    if len(lut) + 1 != len(edges):
+        raise ValueError(
+            f"edges must have length len(lut) + 1, got {len(edges)} edges for {len(lut)} lut values"
+        )
+    assert_monotonic(lut)
+
+    centers = bin_centers(edges)
+    values = np.asarray(l_star, dtype=np.float64)
+    result = np.interp(values.ravel(), centers, lut)
+    result = np.clip(result, L_MIN, L_MAX)
+    return result.reshape(values.shape)
+
+
 def assert_monotonic(lut: np.ndarray) -> None:
     """Raise `ValueError` unless `lut` is finite and non-decreasing."""
     if not np.all(np.isfinite(lut)):

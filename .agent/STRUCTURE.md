@@ -9,7 +9,7 @@
 | `io_image.py` | created | `load_rgb` and `save_rgb` for HEIC, JPG, PNG; `save_rgb` strips EXIF/ICC metadata. |
 | `histogram.py` | created | Fixed-domain 256-bin L* histogram: `l_histogram`, `bin_edges`, `bin_centers`, `bin_width`, `to_pmf`. |
 | `emd.py` | created | 1-D Earth Mover's Distance between histograms: `emd`, `emd_reduction`. |
-| `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `assert_monotonic`. LUT application is TASK-12. |
+| `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `apply_lut`, `assert_monotonic`. |
 | `pipeline.py` | planned | `match_luminance` end-to-end orchestration. |
 | `csv_writer.py` | planned | Histogram CSV writer. |
 | `paths.py` | planned | Output path resolution and overwrite guard. |
@@ -34,6 +34,7 @@ must not be modified.
 | `test_histogram.py` | created | `l_histogram` fixed-domain binning, clipping, edges/dtype, `ValueError` cases, `bin_centers`/`bin_width`/`to_pmf`. |
 | `test_emd.py` | created | `emd` known-distance, identity, symmetry, scale invariance, `ValueError` cases; `emd_reduction` typical/zero/regression cases. |
 | `test_tonemap_lut.py` | created | `build_lut` identity case, monotonicity/finiteness over 50 seeded random histogram pairs, range bounds, degenerate source/reference spikes, `ValueError` cases, `assert_monotonic` direct checks. |
+| `test_tonemap_apply.py` | created | `apply_lut` shape/dtype, range, monotonicity, equal-input equality, end clamping, anti-banding gradient check, identity-LUT tolerance, `ValueError` on mismatched lengths. |
 
 Further test modules (tone mapping round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.

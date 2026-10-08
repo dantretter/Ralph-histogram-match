@@ -81,7 +81,7 @@
     "title": "Implement interpolated LUT application to L* channel",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-12.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-13",
