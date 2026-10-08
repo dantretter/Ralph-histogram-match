@@ -3,12 +3,36 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 6 / 26
-**Current Task:** TASK-6 Complete
+**Tasks Completed:** 7 / 26
+**Current Task:** TASK-7 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-7: Implement load_rgb for HEIC, JPG, and PNG
+
+Added `src/lumamatch/io_image.py`: single `load_rgb(path) -> np.ndarray` loader normalizing
+format differences for the rest of the pipeline.
+- `pillow_heif.register_heif_opener()` called once at module import, before any `.heic` open.
+- `SUPPORTED_EXTENSIONS = frozenset({'.heic', '.heif', '.jpg', '.jpeg', '.png'})`, module-level
+  so the future CLI (TASK-17) can reuse it for argument validation.
+- `_validate_source` resolves the path, rejects unsupported extensions with a `ValueError`
+  listing the supported set, and raises `FileNotFoundError` for a missing file — both checked
+  before any decode attempt.
+- `ImageOps.exif_transpose(img) or img` applied first (guards the None-on-no-EXIF case per the
+  spec's technical note), then `img.convert('RGB')` only when needed — this single call handles
+  L, LA, P, and RGBA uniformly: grayscale expands to 3 equal channels, alpha is dropped (not
+  composited onto any background, which would otherwise silently alter L* in transparent regions),
+  and palette is resolved to true RGB.
+- `UnidentifiedImageError`/`OSError` from `Image.open`/decode are caught and re-raised as
+  `ValueError(f'could not decode {path}: {exc}')` so no PIL-specific exception type leaks to
+  callers.
+- `tests/test_io_load.py`: parametrized shape/dtype check across RGB/L/RGBA/P source images in
+  PNG, JPG, and HEIC containers; explicit grayscale channel-equality and alpha-drop assertions;
+  `.bmp` extension, missing file, and corrupt-bytes-in-a-`.png` error-path tests.
+- Verified: `.venv/bin/pytest -q` → 35 passed; `.venv/bin/ruff check src tests` → clean;
+  `ruff format` → no changes needed.
 
 ## 2026-10-08 — TASK-6: Verify color conversion against known anchors and round-trip
 
