@@ -15,7 +15,8 @@
     "A Security section (from TASK-25) is present",
     "A Testing section explains how to run the suite and what the round-trip test proves",
     "Every command in the README is verified to actually run as written",
-    "`ruff check` unaffected; no code changes required"
+    "`ruff check` unaffected; no code changes required",
+    "The repo-root `README.md` keeps its existing text unchanged; at most a short 'Tool documentation' link to `src/lumamatch/README.md` is appended at the end"
   ],
   "steps": [
     {
@@ -70,6 +71,7 @@
   "dependencies": ["TASK-25"],
   "estimatedComplexity": "low",
   "technicalNotes": [
+    "The repo-root `README.md` was written by the user and describes the Ralph loop experiment. Do not rewrite, reorder, or replace any of its text. All tool documentation goes in `src/lumamatch/README.md`. You may append a short section at the very end of the root README linking to `src/lumamatch/README.md`, and nothing else.",
     "The Algorithm section is the highest-value part of this document. The greedy bin-walk in the original requirements is an approximation of the same map; documenting why the CDF form is exact prevents a future 'optimization' from regressing correctness.",
     "Pasting real output rather than invented output is not pedantry — invented numbers in a README are how documentation and behavior silently diverge.",
     "Do not add pandas to requirements.txt just to support the README snippet; it is illustrative and the tool has no runtime need for it.",
