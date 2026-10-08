@@ -3,12 +3,27 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 13 / 26
-**Current Task:** TASK-13 Complete
+**Tasks Completed:** 14 / 26
+**Current Task:** TASK-14 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-14: Implement output path resolution and overwrite guard
+
+Added `src/lumamatch/paths.py` with `resolve_outputs(target_path, force=False) -> tuple[Path, Path]`.
+Derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` in the target's parent directory,
+preserving the input suffix's case verbatim. Resolves `~` via `expanduser()` before deriving names.
+Checks `parent.is_dir()` and `os.access(parent, os.W_OK)` up front, raising `FileNotFoundError`/
+`PermissionError` before any existence check — a permissions problem is reported before any image
+is decoded elsewhere in the pipeline. When `force` is False, checks `image_out` then `csv_out` for
+existence and raises `FileExistsError` naming the first conflict and mentioning `--force`; both
+checks run before raising so nothing is ever written on a rejected run. Pure `pathlib`/`os`, no
+dependency on numpy/PIL/other project modules, so it stays trivially testable. Added
+`tests/test_paths.py` covering naming, uppercase-suffix preservation, each overwrite-guard branch
+(image-only, csv-only, both, force=True bypass), missing-parent directory, and a read-only-parent
+case (skipped under root, since `os.access` ignores permissions there).
 
 ## 2026-10-08 — TASK-13: Define MatchResult data model
 

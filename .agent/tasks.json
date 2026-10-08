@@ -95,7 +95,7 @@
     "title": "Implement output path resolution and overwrite guard",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-14.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-15",

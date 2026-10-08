@@ -11,9 +11,9 @@
 | `emd.py` | created | 1-D Earth Mover's Distance between histograms: `emd`, `emd_reduction`. |
 | `tonemap.py` | created | Monotonic tone LUT via CDF histogram specification: `build_lut`, `apply_lut`, `assert_monotonic`. |
 | `result.py` | created | `MatchResult` frozen dataclass: hand-off object between pipeline, CSV writer, and CLI reporter; validates shapes/sums and freezes arrays read-only. |
+| `paths.py` | created | `resolve_outputs`: derives `<stem>_matched<suffix>` and `<stem>_histograms.csv` beside the target image; all-or-nothing overwrite guard. |
 | `pipeline.py` | planned | `match_luminance` end-to-end orchestration. |
 | `csv_writer.py` | planned | Histogram CSV writer. |
-| `paths.py` | planned | Output path resolution and overwrite guard. |
 | `cli.py` | planned | Argument parsing, entry point, reporting/error handling. |
 | `__main__.py` | planned | `python -m lumamatch` entry point. |
 
@@ -37,6 +37,7 @@ must not be modified.
 | `test_tonemap_lut.py` | created | `build_lut` identity case, monotonicity/finiteness over 50 seeded random histogram pairs, range bounds, degenerate source/reference spikes, `ValueError` cases, `assert_monotonic` direct checks. |
 | `test_tonemap_apply.py` | created | `apply_lut` shape/dtype, range, monotonicity, equal-input equality, end clamping, anti-banding gradient check, identity-LUT tolerance, `ValueError` on mismatched lengths. |
 | `test_result.py` | created | `MatchResult` valid construction, `emd_reduction` property, length/range/sum validation errors, read-only array enforcement. |
+| `test_paths.py` | created | `resolve_outputs` naming, suffix-case preservation, all-or-nothing overwrite guard (image/csv/both), force bypass, missing-parent and read-only-parent errors. |
 
 Further test modules (tone mapping round-trip, I/O format coverage, CLI
 end-to-end) will be added alongside their corresponding implementation tasks.
