@@ -3,12 +3,25 @@
 `Current Status`
 =================
 **Last Updated:** 2026-10-08
-**Tasks Completed:** 21 / 26
-**Current Task:** TASK-21 Complete
+**Tasks Completed:** 22 / 26
+**Current Task:** TASK-22 Complete
 
 ----------------------------------------------
 
 ## Session Log
+
+## 2026-10-08 — TASK-22: Format coverage test for HEIC, JPG, and PNG
+
+Added `tests/test_formats.py`, parametrized over 5 reference/target extension pairs (3 same-format:
+PNG/PNG, JPG/JPG, HEIC/HEIC; 2 mixed: HEIC->PNG, PNG->JPG) built from the same seeded
+`synthetic_reference`/`random_monotonic_curve` pair so format is the only variable. Each case
+asserts the output file exists with non-zero size, its suffix and reopened Pillow `format` match
+the target extension (HEIC reports `'HEIF'`), output dimensions match the target, `emd_after <
+emd_before` with `emd_reduction > 0.8`, mean `|L_matched - L_reference| < 1.0` for PNG vs `< 3.0`
+for JPEG/HEIC (looser bound absorbs codec quantization, not tone-mapping error), and the CSV has
+`bins` rows with `image2` metadata matching the target path. All 5 cases pass, including HEIC
+encode/decode, confirming libheif is working end to end in this environment. Full suite: 248
+passed; `ruff check` clean.
 
 ## 2026-10-08 — TASK-21: Round-trip matching test over 6 random monotonic curves
 

@@ -151,7 +151,7 @@
     "title": "Format coverage test for HEIC, JPG, and PNG",
     "category": "functional",
     "specFilePath": ".agent/tasks/TASK-22.json",
-    "passes": false
+    "passes": true
   },
   {
     "id": "TASK-23",
